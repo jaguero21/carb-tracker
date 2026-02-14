@@ -95,6 +95,7 @@ class CarbTrackerHome extends StatefulWidget {
 class CarbTrackerHomeState extends State<CarbTrackerHome> {
   final TextEditingController _foodController = TextEditingController();
   final FocusNode _foodFocusNode = FocusNode();
+  final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
   final PerplexityService _perplexityService = PerplexityService();
 
   List<FoodItem> foodItems = [];
@@ -166,6 +167,8 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
         _foodController.clear();
       });
 
+      _listKey.currentState?.insertItem(0, duration: const Duration(milliseconds: 400));
+
       // Provide haptic feedback for successful addition
       HapticFeedback.lightImpact();
 
@@ -199,6 +202,13 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
   }
 
   void _resetTotal() {
+    for (int i = foodItems.length - 1; i >= 0; i--) {
+      _listKey.currentState?.removeItem(
+        i,
+        (context, animation) => _buildAnimatedItem(foodItems[i], animation),
+        duration: const Duration(milliseconds: 300),
+      );
+    }
     setState(() {
       foodItems.clear();
       totalCarbs = 0.0;
@@ -207,11 +217,66 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
   }
 
   void removeItem(int index) {
+    final removedItem = foodItems[index];
     setState(() {
-      totalCarbs -= foodItems[index].carbs;
+      totalCarbs -= removedItem.carbs;
       foodItems.removeAt(index);
     });
+    _listKey.currentState?.removeItem(
+      index,
+      (context, animation) => _buildAnimatedItem(removedItem, animation),
+      duration: const Duration(milliseconds: 300),
+    );
     _saveData();
+  }
+
+  Widget _buildAnimatedItem(FoodItem item, Animation<double> animation) {
+    return SizeTransition(
+      sizeFactor: animation,
+      child: FadeTransition(
+        opacity: animation,
+        child: _buildFoodTile(item),
+      ),
+    );
+  }
+
+  Widget _buildFoodTile(FoodItem item) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        vertical: 16,
+        horizontal: 0,
+      ),
+      decoration: const BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: AppColors.border,
+            width: 1,
+          ),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Text(
+              item.name,
+              style: const TextStyle(
+                fontSize: 16,
+                color: AppColors.ink,
+              ),
+            ),
+          ),
+          Text(
+            '${item.carbs.toStringAsFixed(1)}g',
+            style: const TextStyle(
+              fontSize: 16,
+              color: AppColors.muted,
+              fontWeight: FontWeight.w300,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _saveToSavedFoods(FoodItem item) async {
@@ -280,9 +345,17 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
           ),
         ],
       ),
+      resizeToAvoidBottomInset: false,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
+        child: AnimatedPadding(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+          padding: EdgeInsets.only(
+            left: 24.0,
+            right: 24.0,
+            top: 24.0,
+            bottom: 24.0 + MediaQuery.of(context).viewInsets.bottom,
+          ),
           child: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -395,81 +468,50 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
                         ),
                       ),
                     )
-                  : ListView.builder(
+                  : AnimatedList(
+                      key: _listKey,
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      itemCount: foodItems.length,
-                      itemBuilder: (context, index) {
+                      initialItemCount: foodItems.length,
+                      itemBuilder: (context, index, animation) {
                           final item = foodItems[index];
-                          return Dismissible(
-                            key: Key('${item.name}_$index'),
-                            direction: DismissDirection.horizontal,
-                            confirmDismiss: (direction) async {
-                              if (direction == DismissDirection.startToEnd) {
-                                // Swipe right - save to list
-                                HapticFeedback.lightImpact();
-                                await _saveToSavedFoods(item);
-                                return false; // Don't dismiss
-                              } else {
-                                // Swipe left - delete
-                                HapticFeedback.mediumImpact();
-                                return true; // Allow dismiss
-                              }
-                            },
-                            onDismissed: (_) => removeItem(index),
-                            background: Container(
-                              alignment: Alignment.centerLeft,
-                              padding: const EdgeInsets.only(left: 16),
-                              color: AppColors.sage,
-                              child: AppIcons.bookmarkIcon(
-                                size: 28,
-                                color: Colors.white,
-                              ),
-                            ),
-                            secondaryBackground: Container(
-                              alignment: Alignment.centerRight,
-                              padding: const EdgeInsets.only(right: 16),
-                              color: AppColors.terracotta,
-                              child: AppIcons.deleteIcon(
-                                size: 28,
-                                color: Colors.white,
-                              ),
-                            ),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 16,
-                                horizontal: 0,
-                              ),
-                              decoration: const BoxDecoration(
-                                border: Border(
-                                  bottom: BorderSide(
-                                    color: AppColors.border,
-                                    width: 1,
+                          return SizeTransition(
+                            sizeFactor: animation,
+                            child: FadeTransition(
+                              opacity: animation,
+                              child: Dismissible(
+                                key: Key('${item.name}_$index'),
+                                direction: DismissDirection.horizontal,
+                                confirmDismiss: (direction) async {
+                                  if (direction == DismissDirection.startToEnd) {
+                                    HapticFeedback.lightImpact();
+                                    await _saveToSavedFoods(item);
+                                    return false;
+                                  } else {
+                                    HapticFeedback.mediumImpact();
+                                    return true;
+                                  }
+                                },
+                                onDismissed: (_) => removeItem(index),
+                                background: Container(
+                                  alignment: Alignment.centerLeft,
+                                  padding: const EdgeInsets.only(left: 16),
+                                  color: AppColors.sage,
+                                  child: AppIcons.bookmarkIcon(
+                                    size: 28,
+                                    color: Colors.white,
                                   ),
                                 ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      item.name,
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        color: AppColors.ink,
-                                      ),
-                                    ),
+                                secondaryBackground: Container(
+                                  alignment: Alignment.centerRight,
+                                  padding: const EdgeInsets.only(right: 16),
+                                  color: AppColors.terracotta,
+                                  child: AppIcons.deleteIcon(
+                                    size: 28,
+                                    color: Colors.white,
                                   ),
-                                  Text(
-                                    '${item.carbs.toStringAsFixed(1)}g',
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      color: AppColors.muted,
-                                      fontWeight: FontWeight.w300,
-                                    ),
-                                  ),
-                                ],
+                                ),
+                                child: _buildFoodTile(item),
                               ),
                             ),
                           );
