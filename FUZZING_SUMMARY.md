@@ -190,12 +190,13 @@ final validPattern = RegExp(r"^[a-zA-Z0-9 \-,.()&%]+$");
 
 ### Security vs Usability
 
-#### ❌ No Longer Allowed:
-- **Apostrophes** (`'`) - e.g., "yesterday's meal"
-  - **Reason:** Prevents SQL-like injection syntax
-  - **Workaround:** Users can write "yesterdays meal" or "yesterday meal"
+#### ✅ Allowed for Better UX:
+- **Apostrophes** (`'`) - e.g., "McDonald's", "mom's cooking", "yesterday's meal"
+  - **Justification:** Essential for restaurant names and common food descriptions
+  - **Safety:** App doesn't use SQL database (uses SharedPreferences), so SQL injection not a threat
+  - **Protection:** Sanitization layer still cleans input before API calls
 
-#### ✅ Still Allowed:
+#### ✅ Also Allowed:
 - **Percentages** (`%`) - e.g., "50% fat milk"
   - **Justification:** Common in food descriptions, format string attacks not relevant in Dart
 - **Ampersands** (`&`) - e.g., "mac & cheese"

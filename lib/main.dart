@@ -94,6 +94,7 @@ class CarbTrackerHome extends StatefulWidget {
 // Made public for testing
 class CarbTrackerHomeState extends State<CarbTrackerHome> {
   final TextEditingController _foodController = TextEditingController();
+  final FocusNode _foodFocusNode = FocusNode();
   final PerplexityService _perplexityService = PerplexityService();
 
   List<FoodItem> foodItems = [];
@@ -142,6 +143,9 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
       }
       return;
     }
+
+    // Dismiss keyboard so the user can see results
+    _foodFocusNode.unfocus();
 
     setState(() {
       isLoading = true;
@@ -312,6 +316,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
               // Input Field
               TextField(
                 controller: _foodController,
+                focusNode: _foodFocusNode,
                 decoration: InputDecoration(
                   hintText: 'Enter food item...',
                   hintStyle: TextStyle(color: AppColors.muted.withValues(alpha: 0.6)),
@@ -481,6 +486,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
   @override
   void dispose() {
     _foodController.dispose();
+    _foodFocusNode.dispose();
     super.dispose();
   }
 }

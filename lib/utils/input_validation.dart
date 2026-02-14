@@ -37,8 +37,9 @@ class InputValidation {
 
     // SECURITY: Validate character set
     // FIXED: Use literal space instead of \s to prevent control characters
-    // FIXED: Removed apostrophe to prevent SQL-like syntax
-    final validPattern = RegExp(r"^[a-zA-Z0-9 \-,.()&%]+$");
+    // Allows both straight (') and curly (') apostrophes for restaurant names
+    // iOS keyboards insert curly apostrophes by default
+    final validPattern = RegExp(r"^[a-zA-Z0-9 \-,.()&%'\u2019]+$");
     if (!validPattern.hasMatch(trimmed)) {
       return 'Please use only letters, numbers, and common punctuation';
     }
@@ -84,12 +85,14 @@ class InputValidation {
   /// Sanitizes input before sending to external APIs
   ///
   /// Additional safety layer - removes any control characters that slipped through
+  /// Normalizes curly apostrophes to straight apostrophes
   static String sanitizeForApi(String input) {
     return input
         .replaceAll('\n', ' ')
         .replaceAll('\r', ' ')
         .replaceAll('\t', ' ')
         .replaceAll('\x00', '') // null bytes
+        .replaceAll('\u2019', "'") // normalize curly apostrophe (') to straight (')
         .replaceAll(RegExp(r'\s+'), ' ') // collapse multiple spaces
         .trim();
   }

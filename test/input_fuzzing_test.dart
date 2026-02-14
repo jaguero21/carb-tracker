@@ -52,12 +52,13 @@ void main() {
         expect(InputValidation.validateFoodInput('test"><script>'), isNotNull);
       });
 
-      test('SQL injection attempts should be rejected', () {
-        expect(
-            InputValidation.validateFoodInput("apple' OR '1'='1"), isNotNull);
+      test('SQL injection attempts - semicolons blocked', () {
+        // Note: Apostrophes are allowed for restaurant names (McDonald's)
+        // App doesn't use SQL database (uses SharedPreferences), so SQL syntax isn't a threat
+        // Semicolons and other dangerous chars are still blocked
         expect(InputValidation.validateFoodInput('apple; DROP TABLE foods;--'),
             isNotNull);
-        expect(InputValidation.validateFoodInput("1' UNION SELECT NULL--"),
+        expect(InputValidation.validateFoodInput('test; DELETE FROM users'),
             isNotNull);
       });
 
@@ -198,9 +199,11 @@ void main() {
         expect(InputValidation.validateFoodInput('fish-and-chips'), isNull);
         expect(InputValidation.validateFoodInput('mom,s cooking'), isNull);
         expect(InputValidation.validateFoodInput('dinner (leftover)'), isNull);
-        // SECURITY: Apostrophes removed to prevent SQL-style injection
-        expect(
-            InputValidation.validateFoodInput("yesterday's meal"), isNotNull);
+        // Straight apostrophes allowed for restaurant names
+        expect(InputValidation.validateFoodInput("yesterday's meal"), isNull);
+        expect(InputValidation.validateFoodInput("McDonald's Big Mac"), isNull);
+        // Curly apostrophes (iOS keyboards) also allowed
+        expect(InputValidation.validateFoodInput("mama Margie\u2019s bean"), isNull);
         expect(InputValidation.validateFoodInput('mac & cheese'), isNull);
         expect(InputValidation.validateFoodInput('50% reduction'), isNull);
       });
