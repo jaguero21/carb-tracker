@@ -1,0 +1,16 @@
+<svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+  <rect x="18" y="14" width="44" height="52" rx="6" fill="white" stroke="#E0D9CE" stroke-width="1.5"/>
+  <rect x="18" y="14" width="44" height="16" rx="6" fill="#4D6B47"/>
+  <rect x="18" y="22" width="44" height="8" fill="#4D6B47"/>
+  <text x="40" y="26" text-anchor="middle" font-size="7" font-weight="600" fill="white" font-family="sans-serif">NUTRITION</text>
+  <line x1="22" y1="38" x2="58" y2="38" stroke="#E0D9CE" stroke-width="1"/>
+  <rect x="22" y="42" width="20" height="3" rx="1.5" fill="#E0D9CE"/>
+  <rect x="22" y="42" width="14" height="3" rx="1.5" fill="#7D9B76"/>
+  <rect x="22" y="49" width="20" height="3" rx="1.5" fill="#E0D9CE"/>
+  <rect x="22" y="49" width="8" height="3" rx="1.5" fill="#E8A93C"/>
+  <rect x="22" y="56" width="20" height="3" rx="1.5" fill="#E0D9CE"/>
+  <rect x="22" y="56" width="16" height="3" rx="1.5" fill="#D4714E"/>
+  <text x="58" y="45" text-anchor="end" font-size="6" fill="#8A7D74" font-family="sans-serif">45g</text>
+  <text x="58" y="52" text-anchor="end" font-size="6" fill="#8A7D74" font-family="sans-serif">12g</text>
+  <text x="58" y="59" text-anchor="end" font-size="6" fill="#8A7D74" font-family="sans-serif">28g</text>
+</svg>

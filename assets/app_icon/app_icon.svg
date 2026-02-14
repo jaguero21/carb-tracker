@@ -1,0 +1,36 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="appGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8FB887"/>
+      <stop offset="100%" style="stop-color:#4D6B47"/>
+    </linearGradient>
+    <linearGradient id="leafGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F2C56B"/>
+      <stop offset="100%" style="stop-color:#E8A93C"/>
+    </linearGradient>
+    <filter id="softShadow">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1024" height="1024" fill="url(#appGrad)" rx="225"/>
+
+  <!-- Decorative arc -->
+  <circle cx="820" cy="204" r="410" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="143"/>
+
+  <!-- Bowl shape -->
+  <path d="M 266 486 Q 266 742 512 778 Q 758 742 758 486 Z" fill="rgba(255,255,255,0.95)" filter="url(#softShadow)"/>
+  <rect x="266" y="471" width="492" height="41" rx="20" fill="rgba(255,255,255,0.95)"/>
+
+  <!-- Food dots in bowl -->
+  <circle cx="410" cy="624" r="46" fill="#D4714E" opacity="0.9"/>
+  <circle cx="512" cy="593" r="36" fill="#E8A93C" opacity="0.9"/>
+  <circle cx="604" cy="634" r="41" fill="#7D9B76" opacity="0.9"/>
+  <circle cx="471" cy="675" r="31" fill="#5B8DB8" opacity="0.85"/>
+  <circle cx="573" cy="680" r="26" fill="#D4714E" opacity="0.7"/>
+
+  <!-- Leaf / grain accent -->
+  <path d="M 512 333 C 461 282 420 246 430 195 C 451 231 492 256 512 333 Z" fill="url(#leafGrad)" opacity="0.95"/>
+  <path d="M 512 333 C 563 282 604 246 594 195 C 573 231 532 256 512 333 Z" fill="rgba(255,255,255,0.6)" opacity="0.8"/>
+</svg>

@@ -1,0 +1,46 @@
+name: carb_tracker
+description: A minimalist carb tracking app using Perplexity API
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # HTTP requests for Perplexity API
+  http: ^1.1.0
+
+  # Local storage for saving data
+  shared_preferences: ^2.2.2
+
+  # SVG rendering for custom icons
+  flutter_svg: ^2.0.9
+  flutter_dotenv: ^6.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/icons/
+    - assets/app_icon/
+    - .env
+
+# App Icon Configuration
+# Run: flutter pub run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/app_icon/app_icon.png"
+  remove_alpha_ios: true
+  # For adaptive icons on Android (uses same image)
+  adaptive_icon_background: "#7D9B76"
+  adaptive_icon_foreground: "assets/app_icon/app_icon.png"
