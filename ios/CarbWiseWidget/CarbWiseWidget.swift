@@ -55,57 +55,56 @@ struct CarbWiseEntry: TimelineEntry {
 struct CarbWiseWidgetEntryView: View {
     var entry: CarbWiseProvider.Entry
 
-    private let cream = Color(red: 250/255, green: 247/255, blue: 242/255)
     private let sage = Color(red: 125/255, green: 155/255, blue: 118/255)
-    private let ink = Color(red: 42/255, green: 37/255, blue: 32/255)
-    private let muted = Color(red: 138/255, green: 125/255, blue: 116/255)
 
     var body: some View {
-        ZStack {
-            cream
-
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text("CarbWise")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(sage)
-                    Spacer()
-                }
-
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Image(systemName: "leaf.fill")
+                    .font(.system(size: 10))
+                    .foregroundStyle(sage)
+                Text("biteBot")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(sage)
                 Spacer()
-
-                Text(String(format: "%.1fg", entry.data.totalCarbs))
-                    .font(.system(size: 32, weight: .light))
-                    .foregroundColor(ink)
-                    .minimumScaleFactor(0.7)
-                    .lineLimit(1)
-
-                Text("total carbs")
-                    .font(.system(size: 11))
-                    .foregroundColor(muted)
-
-                Spacer()
-
-                if !entry.data.lastFoodName.isEmpty {
-                    HStack {
-                        Text(entry.data.lastFoodName)
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(ink)
-                            .lineLimit(1)
-                        Spacer()
-                        Text(String(format: "%.1fg", entry.data.lastFoodCarbs))
-                            .font(.system(size: 11, weight: .light))
-                            .foregroundColor(muted)
-                    }
-                } else {
-                    Text("Tap to add food")
-                        .font(.system(size: 11))
-                        .foregroundColor(muted)
-                }
             }
-            .padding(14)
+
+            Spacer()
+
+            Text(String(format: "%.1fg", entry.data.totalCarbs))
+                .font(.system(size: 32, weight: .light, design: .rounded))
+                .foregroundStyle(.primary)
+                .minimumScaleFactor(0.7)
+                .lineLimit(1)
+
+            Text("total carbs")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+
+            Spacer()
+
+            if !entry.data.lastFoodName.isEmpty {
+                HStack {
+                    Text(entry.data.lastFoodName)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    Spacer()
+                    Text(String(format: "%.1fg", entry.data.lastFoodCarbs))
+                        .font(.system(size: 11, weight: .light))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .glassEffect(.regular, in: .capsule)
+            } else {
+                Text("Tap to add food")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
         }
-        .widgetURL(URL(string: "carbwise://open"))
+        .padding(14)
+        .widgetURL(URL(string: "bitebot://open"))
     }
 }
 
@@ -115,8 +114,9 @@ struct CarbWiseWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: CarbWiseProvider()) { entry in
             CarbWiseWidgetEntryView(entry: entry)
+                .containerBackground(.clear, for: .widget)
         }
-        .configurationDisplayName("CarbWise")
+        .configurationDisplayName("biteBot")
         .description("Track your daily carb intake at a glance.")
         .supportedFamilies([.systemSmall])
     }

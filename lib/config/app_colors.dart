@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// CarbWise Brand Color Palette
+/// biteBot Brand Color Palette
 /// A warm, natural color scheme designed for mindful carb tracking
 class AppColors {
   AppColors._(); // Private constructor to prevent instantiation

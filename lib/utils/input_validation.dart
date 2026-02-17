@@ -1,4 +1,4 @@
-/// Hardened input validation utilities for CarbWise
+/// Hardened input validation utilities for biteBot
 /// Protects against injection attacks, control characters, and prompt manipulation
 library;
 
