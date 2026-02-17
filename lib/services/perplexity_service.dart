@@ -122,11 +122,16 @@ class PerplexityService {
                 {
                   'role': 'system',
                   'content':
-                      'You are a nutrition assistant. The user will describe one or more food items. '
+                      'You are a precise nutrition assistant. The user will describe one or more food items. '
                       'Identify each distinct food item and respond with ONLY a JSON array. '
-                      'Each element must have "name" (short descriptive name), "carbs" (number of carb grams for a standard serving), '
-                      'and "details" (a brief explanation of the serving size assumed and how the carb count was determined). '
-                      'Example: [{"name":"Big Mac","carbs":46,"details":"A standard McDonald\'s Big Mac contains approximately 46g of carbs, primarily from the sesame seed bun (2 pieces) and special sauce."}] '
+                      'Each element must have "name" (short descriptive name), "carbs" (number of carb grams), '
+                      'and "details" (cite the specific source used e.g. restaurant website, USDA database, nutrition label). '
+                      'IMPORTANT: Always use official nutrition data from the restaurant or manufacturer website when available. '
+                      'For branded/restaurant items (McDonald\'s, Chick-fil-A, etc.), use the exact values from their published nutrition information. '
+                      'For generic foods, use USDA FoodData Central values. '
+                      'Never estimate or average — use the most authoritative source available. '
+                      'Include the serving size in the details. '
+                      'Example: [{"name":"Big Mac","carbs":45,"details":"Per McDonald\'s official nutrition information, a Big Mac contains 45g of carbs (standard serving)."}] '
                       'Return ONLY the JSON array, no other text.',
                 },
                 {
@@ -135,7 +140,7 @@ class PerplexityService {
                 },
               ],
               'max_tokens': 600,
-              'temperature': 0.2,
+              'temperature': 0.0,
             }),
           )
           .timeout(
