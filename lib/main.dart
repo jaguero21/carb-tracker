@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:home_widget/home_widget.dart';
 import 'dart:convert';
 import 'services/perplexity_service.dart';
 import 'models/food_item.dart';
@@ -18,6 +19,9 @@ Future<void> main() async {
 
   // Load environment variables
   await dotenv.load(fileName: ".env");
+
+  // Initialize HomeWidget for iOS widget data sharing
+  HomeWidget.setAppGroupId('group.com.jamesaguero.mycarbtracker');
 
   runApp(const CarbTrackerApp());
 }
@@ -109,6 +113,29 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
   void initState() {
     super.initState();
     _loadSavedData();
+    _checkWidgetLaunch();
+  }
+
+  Future<void> _checkWidgetLaunch() async {
+    final uri = await HomeWidget.initiallyLaunchedFromHomeWidget();
+    if (uri != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _foodFocusNode.requestFocus();
+      });
+    }
+  }
+
+  Future<void> _updateWidget() async {
+    await HomeWidget.saveWidgetData<double>('totalCarbs', totalCarbs);
+    await HomeWidget.saveWidgetData<String>(
+      'lastFoodName',
+      foodItems.isNotEmpty ? foodItems.first.name : '',
+    );
+    await HomeWidget.saveWidgetData<double>(
+      'lastFoodCarbs',
+      foodItems.isNotEmpty ? foodItems.first.carbs : 0.0,
+    );
+    await HomeWidget.updateWidget(iOSName: 'CarbWiseWidget');
   }
 
   Future<void> _loadSavedData() async {
@@ -175,6 +202,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
       HapticFeedback.lightImpact();
 
       await _saveData();
+      await _updateWidget();
     } catch (e) {
       setState(() {
         isLoading = false;
@@ -216,6 +244,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
       totalCarbs = 0.0;
     });
     _saveData();
+    _updateWidget();
   }
 
   void removeItem(int index) {
@@ -230,6 +259,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
       duration: const Duration(milliseconds: 300),
     );
     _saveData();
+    _updateWidget();
   }
 
   Widget _buildAnimatedItem(FoodItem item, Animation<double> animation) {
