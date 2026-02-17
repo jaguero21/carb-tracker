@@ -124,8 +124,9 @@ class PerplexityService {
                   'content':
                       'You are a nutrition assistant. The user will describe one or more food items. '
                       'Identify each distinct food item and respond with ONLY a JSON array. '
-                      'Each element must have "name" (short descriptive name) and "carbs" (number of carb grams for a standard serving). '
-                      'Example: [{"name":"Big Mac","carbs":46},{"name":"Medium Fries","carbs":44}] '
+                      'Each element must have "name" (short descriptive name), "carbs" (number of carb grams for a standard serving), '
+                      'and "details" (a brief explanation of the serving size assumed and how the carb count was determined). '
+                      'Example: [{"name":"Big Mac","carbs":46,"details":"A standard McDonald\'s Big Mac contains approximately 46g of carbs, primarily from the sesame seed bun (2 pieces) and special sauce."}] '
                       'Return ONLY the JSON array, no other text.',
                 },
                 {
@@ -133,7 +134,7 @@ class PerplexityService {
                   'content': sanitizedInput,
                 },
               ],
-              'max_tokens': 300,
+              'max_tokens': 600,
               'temperature': 0.2,
             }),
           )
@@ -152,7 +153,10 @@ class PerplexityService {
           }
 
           final content = (data['choices'][0]['message']['content'] as String).trim();
-          return _parseMultipleItems(content);
+          final citations = data['citations'] != null
+              ? List<String>.from(data['citations'])
+              : <String>[];
+          return _parseMultipleItems(content, citations);
         } on FormatException {
           throw Exception('Received malformed response from API');
         }
@@ -176,7 +180,7 @@ class PerplexityService {
   }
 
   /// Parses the JSON array response into a list of FoodItems.
-  List<FoodItem> _parseMultipleItems(String content) {
+  List<FoodItem> _parseMultipleItems(String content, List<String> citations) {
     // Extract JSON array from response (handle markdown code fences)
     var jsonStr = content;
     final arrayMatch = RegExp(r'\[[\s\S]*\]').firstMatch(jsonStr);
@@ -189,7 +193,8 @@ class PerplexityService {
       return items.map((item) {
         final name = item['name'] as String;
         final carbs = (item['carbs'] as num).toDouble();
-        return FoodItem(name: name, carbs: carbs);
+        final details = item['details'] as String?;
+        return FoodItem(name: name, carbs: carbs, details: details, citations: citations);
       }).toList();
     } catch (_) {
       throw Exception('Could not parse food items from response');

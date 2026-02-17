@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:convert';
 import 'services/perplexity_service.dart';
 import 'models/food_item.dart';
@@ -240,8 +242,85 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
     );
   }
 
+  void _showFoodDetails(FoodItem item) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(item.name),
+        content: SingleChildScrollView(
+          child: RichText(
+            text: _buildDetailsTextSpan(
+              item.details ?? 'No details available for this item.',
+              item.citations,
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Builds a TextSpan that renders [N] citation references as tappable links.
+  TextSpan _buildDetailsTextSpan(String text, List<String> citations) {
+    final spans = <InlineSpan>[];
+    final citationPattern = RegExp(r'\[(\d+)\]');
+    var lastEnd = 0;
+
+    for (final match in citationPattern.allMatches(text)) {
+      // Add plain text before this citation
+      if (match.start > lastEnd) {
+        spans.add(TextSpan(
+          text: text.substring(lastEnd, match.start),
+        ));
+      }
+
+      final refNumber = int.tryParse(match.group(1)!) ?? 0;
+      final citationIndex = refNumber - 1;
+      final hasUrl = citationIndex >= 0 && citationIndex < citations.length;
+
+      spans.add(TextSpan(
+        text: '[${match.group(1)}]',
+        style: TextStyle(
+          color: hasUrl ? AppColors.sage : AppColors.muted,
+          fontWeight: hasUrl ? FontWeight.w600 : FontWeight.normal,
+          decoration: hasUrl ? TextDecoration.underline : TextDecoration.none,
+        ),
+        recognizer: hasUrl
+            ? (TapGestureRecognizer()
+              ..onTap = () {
+                launchUrl(Uri.parse(citations[citationIndex]),
+                    mode: LaunchMode.externalApplication);
+              })
+            : null,
+      ));
+
+      lastEnd = match.end;
+    }
+
+    // Add remaining text after last citation
+    if (lastEnd < text.length) {
+      spans.add(TextSpan(text: text.substring(lastEnd)));
+    }
+
+    return TextSpan(
+      style: const TextStyle(
+        fontSize: 15,
+        color: AppColors.ink,
+        height: 1.5,
+      ),
+      children: spans,
+    );
+  }
+
   Widget _buildFoodTile(FoodItem item) {
-    return Container(
+    return GestureDetector(
+      onLongPress: () => _showFoodDetails(item),
+      child: Container(
       padding: const EdgeInsets.symmetric(
         vertical: 16,
         horizontal: 0,
@@ -276,6 +355,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
           ),
         ],
       ),
+    ),
     );
   }
 
