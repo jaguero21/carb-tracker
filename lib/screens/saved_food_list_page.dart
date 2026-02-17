@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/food_item.dart';
+import '../config/app_colors.dart';
+import '../config/app_icons.dart';
 
 class SavedFoodListPage extends StatefulWidget {
   const SavedFoodListPage({super.key});
@@ -64,6 +67,16 @@ class _SavedFoodListPageState extends State<SavedFoodListPage> {
         _savedFoods.clear();
       });
     }
+  }
+
+  Future<void> _removeSavedFood(int index) async {
+    setState(() {
+      _savedFoods.removeAt(index);
+    });
+    HapticFeedback.mediumImpact();
+    final prefs = await SharedPreferences.getInstance();
+    final encoded = jsonEncode(_savedFoods.map((f) => f.toJson()).toList());
+    await prefs.setString('saved_foods', encoded);
   }
 
   @override
@@ -136,40 +149,54 @@ class _SavedFoodListPageState extends State<SavedFoodListPage> {
                   itemCount: _savedFoods.length,
                   itemBuilder: (context, index) {
                     final item = _savedFoods[index];
-                    return Container(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 16,
-                        horizontal: 0,
-                      ),
-                      decoration: const BoxDecoration(
-                        border: Border(
-                          bottom: BorderSide(
-                            color: Colors.grey,
-                            width: 0.5,
-                          ),
+                    return Dismissible(
+                      key: Key('saved_${item.name}_$index'),
+                      direction: DismissDirection.endToStart,
+                      onDismissed: (_) => _removeSavedFood(index),
+                      background: Container(
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.only(right: 16),
+                        color: AppColors.terracotta,
+                        child: AppIcons.deleteIcon(
+                          size: 28,
+                          color: Colors.white,
                         ),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              item.name,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                color: Colors.black87,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 16,
+                          horizontal: 0,
+                        ),
+                        decoration: const BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(
+                              color: Colors.grey,
+                              width: 0.5,
+                            ),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                item.name,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.black87,
+                                ),
                               ),
                             ),
-                          ),
-                          Text(
-                            '${item.carbs.toStringAsFixed(1)}g',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              color: Colors.black54,
-                              fontWeight: FontWeight.w300,
+                            Text(
+                              '${item.carbs.toStringAsFixed(1)}g',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                color: Colors.black54,
+                                fontWeight: FontWeight.w300,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     );
                   },

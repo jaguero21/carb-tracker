@@ -101,6 +101,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
   List<FoodItem> foodItems = [];
   double totalCarbs = 0.0;
   bool isLoading = false;
+  bool showingDailyTotal = false;
 
   @override
   void initState() {
@@ -153,23 +154,22 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
     });
 
     try {
-      final carbCount = await _perplexityService.getCarbCount(foodText);
-
-      final newItem = FoodItem(
-        name: foodText,
-        carbs: carbCount,
-      );
+      final items = await _perplexityService.getMultipleCarbCounts(foodText);
 
       setState(() {
-        foodItems.insert(0, newItem);
-        totalCarbs += carbCount;
+        for (final item in items.reversed) {
+          foodItems.insert(0, item);
+          totalCarbs += item.carbs;
+        }
         isLoading = false;
+        showingDailyTotal = false;
         _foodController.clear();
       });
 
-      _listKey.currentState?.insertItem(0, duration: const Duration(milliseconds: 400));
+      for (var i = 0; i < items.length; i++) {
+        _listKey.currentState?.insertItem(0, duration: const Duration(milliseconds: 400));
+      }
 
-      // Provide haptic feedback for successful addition
       HapticFeedback.lightImpact();
 
       await _saveData();
@@ -360,29 +360,43 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-              // Total Display
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 32.0),
-                child: Column(
-                  children: [
-                    Text(
-                      'Total Carbs',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: AppColors.muted,
-                        letterSpacing: 1.2,
+              // Carb Display — long press to toggle between last item and daily total
+              GestureDetector(
+                onLongPress: foodItems.isNotEmpty
+                    ? () {
+                        setState(() {
+                          showingDailyTotal = !showingDailyTotal;
+                        });
+                        HapticFeedback.lightImpact();
+                      }
+                    : null,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 32.0),
+                  child: Column(
+                    children: [
+                      Text(
+                        showingDailyTotal || foodItems.isEmpty
+                            ? 'Total Carbs'
+                            : foodItems.first.name,
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: AppColors.muted,
+                          letterSpacing: 1.2,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '${totalCarbs.toStringAsFixed(1)}g',
-                      style: const TextStyle(
-                        fontSize: 56,
-                        fontWeight: FontWeight.w300,
-                        color: AppColors.ink,
+                      const SizedBox(height: 8),
+                      Text(
+                        showingDailyTotal || foodItems.isEmpty
+                            ? '${totalCarbs.toStringAsFixed(1)}g'
+                            : '${foodItems.first.carbs.toStringAsFixed(1)}g',
+                        style: const TextStyle(
+                          fontSize: 56,
+                          fontWeight: FontWeight.w300,
+                          color: AppColors.ink,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
 

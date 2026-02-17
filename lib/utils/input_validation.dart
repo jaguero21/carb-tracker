@@ -1,5 +1,6 @@
 /// Hardened input validation utilities for CarbWise
 /// Protects against injection attacks, control characters, and prompt manipulation
+library;
 
 class InputValidation {
   /// Validates food item input with comprehensive security checks
@@ -39,7 +40,7 @@ class InputValidation {
     // FIXED: Use literal space instead of \s to prevent control characters
     // Allows both straight (') and curly (') apostrophes for restaurant names
     // iOS keyboards insert curly apostrophes by default
-    final validPattern = RegExp(r"^[a-zA-Z0-9 \-,.()&%'\u2019]+$");
+    final validPattern = RegExp(r"^[a-zA-Z0-9 \-,.()&%'/\u2019]+$");
     if (!validPattern.hasMatch(trimmed)) {
       return 'Please use only letters, numbers, and common punctuation';
     }

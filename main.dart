@@ -34,9 +34,10 @@ class _CarbTrackerHomeState extends State<CarbTrackerHome> {
   final TextEditingController _foodController = TextEditingController();
   final PerplexityService _perplexityService = PerplexityService();
   
-  List<FoodItem> _foodItems = [];
+  final List<FoodItem> _foodItems = [];
   double _totalCarbs = 0.0;
   bool _isLoading = false;
+  bool _showingDailyTotal = false;
 
   @override
   void initState() {
@@ -77,6 +78,7 @@ class _CarbTrackerHomeState extends State<CarbTrackerHome> {
         _foodItems.insert(0, newItem);
         _totalCarbs += carbCount;
         _isLoading = false;
+        _showingDailyTotal = false;
         _foodController.clear();
       });
 
@@ -120,29 +122,42 @@ class _CarbTrackerHomeState extends State<CarbTrackerHome> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Total Display
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 32.0),
-                child: Column(
-                  children: [
-                    const Text(
-                      'Total Carbs',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey,
-                        letterSpacing: 1.2,
+              // Carb Display — long press to toggle between last item and daily total
+              GestureDetector(
+                onLongPress: _foodItems.isNotEmpty
+                    ? () {
+                        setState(() {
+                          _showingDailyTotal = !_showingDailyTotal;
+                        });
+                      }
+                    : null,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 32.0),
+                  child: Column(
+                    children: [
+                      Text(
+                        _showingDailyTotal || _foodItems.isEmpty
+                            ? 'Total Carbs'
+                            : _foodItems.first.name,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey,
+                          letterSpacing: 1.2,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '${_totalCarbs.toStringAsFixed(1)}g',
-                      style: const TextStyle(
-                        fontSize: 56,
-                        fontWeight: FontWeight.w300,
-                        color: Colors.black87,
+                      const SizedBox(height: 8),
+                      Text(
+                        _showingDailyTotal || _foodItems.isEmpty
+                            ? '${_totalCarbs.toStringAsFixed(1)}g'
+                            : '${_foodItems.first.carbs.toStringAsFixed(1)}g',
+                        style: const TextStyle(
+                          fontSize: 56,
+                          fontWeight: FontWeight.w300,
+                          color: Colors.black87,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
 
