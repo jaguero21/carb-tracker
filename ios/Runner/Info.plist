@@ -35,6 +35,8 @@
 			<string>com.jamesaguero.mycarbtracker</string>
 		</dict>
 	</array>
+	<key>NSSiriUsageDescription</key>
+	<string>CarpeCarb uses Siri to let you log food and check your daily carb intake hands-free.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>

@@ -141,9 +141,44 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
   Future<void> _loadSavedData() async {
     final prefs = await SharedPreferences.getInstance();
     final savedTotal = prefs.getDouble('total_carbs') ?? 0.0;
+
+    // Also check the shared UserDefaults total (Siri may have updated it)
+    final widgetTotal = await HomeWidget.getWidgetData<double>('totalCarbs') ?? 0.0;
+    final effectiveTotal = widgetTotal > savedTotal ? widgetTotal : savedTotal;
+
     setState(() {
-      totalCarbs = savedTotal;
+      totalCarbs = effectiveTotal;
     });
+    // Pick up any food items logged via Siri while the app was closed
+    await _importSiriLoggedItems();
+  }
+
+  Future<void> _importSiriLoggedItems() async {
+    final siriItemsJson = await HomeWidget.getWidgetData<String>('siriLoggedItems');
+    if (siriItemsJson == null) return;
+
+    try {
+      final List<dynamic> siriItems = jsonDecode(siriItemsJson);
+      if (siriItems.isEmpty) return;
+
+      setState(() {
+        for (final item in siriItems) {
+          final foodItem = FoodItem(
+            name: item['name'] as String,
+            carbs: (item['carbs'] as num).toDouble(),
+          );
+          foodItems.insert(0, foodItem);
+          _listKey.currentState?.insertItem(0, duration: const Duration(milliseconds: 400));
+        }
+        // Sync totalCarbs from shared UserDefaults (Siri already updated it)
+      });
+
+      // Clear the Siri buffer so we don't re-import on next launch
+      await HomeWidget.saveWidgetData<String?>('siriLoggedItems', null);
+      await _saveData();
+    } catch (_) {
+      // Ignore malformed Siri data
+    }
   }
 
   Future<void> _saveData() async {
