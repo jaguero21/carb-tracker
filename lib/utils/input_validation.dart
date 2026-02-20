@@ -1,4 +1,4 @@
-/// Hardened input validation utilities for biteBot
+/// Hardened input validation utilities for CarpeCarb
 /// Protects against injection attacks, control characters, and prompt manipulation
 library;
 

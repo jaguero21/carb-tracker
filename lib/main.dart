@@ -32,7 +32,7 @@ class CarbTrackerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'biteBot',
+      title: 'CarpeCarb',
       theme: ThemeData(
         primarySwatch: sageSwatch,
         primaryColor: AppColors.sage,
@@ -433,7 +433,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'biteBot',
+          'CarpeCarb',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w500,

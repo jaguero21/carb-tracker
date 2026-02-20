@@ -63,7 +63,7 @@ struct CarbWiseWidgetEntryView: View {
                 Image(systemName: "leaf.fill")
                     .font(.system(size: 10))
                     .foregroundStyle(sage)
-                Text("biteBot")
+                Text("CarpeCarb")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(sage)
                 Spacer()
@@ -104,7 +104,7 @@ struct CarbWiseWidgetEntryView: View {
             }
         }
         .padding(14)
-        .widgetURL(URL(string: "bitebot://open"))
+        .widgetURL(URL(string: "carpecarb://open"))
     }
 }
 
@@ -116,7 +116,7 @@ struct CarbWiseWidget: Widget {
             CarbWiseWidgetEntryView(entry: entry)
                 .containerBackground(.clear, for: .widget)
         }
-        .configurationDisplayName("biteBot")
+        .configurationDisplayName("CarpeCarb")
         .description("Track your daily carb intake at a glance.")
         .supportedFamilies([.systemSmall])
     }

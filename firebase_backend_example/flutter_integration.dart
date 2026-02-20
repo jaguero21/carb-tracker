@@ -1,6 +1,7 @@
 /// Example: How to integrate Firebase Functions with your Flutter app
 ///
 /// This replaces the current PerplexityService with calls to Firebase Functions
+library;
 
 import 'package:cloud_functions/cloud_functions.dart';
 
