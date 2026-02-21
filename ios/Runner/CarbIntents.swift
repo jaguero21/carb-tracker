@@ -43,7 +43,8 @@ struct CarbDataStore {
            let parsed = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
             siriItems = parsed
         }
-        siriItems.append(["name": name, "carbs": carbs])
+        let timestamp = ISO8601DateFormatter().string(from: Date())
+        siriItems.append(["name": name, "carbs": carbs, "timestamp": timestamp])
         if let jsonData = try? JSONSerialization.data(withJSONObject: siriItems),
            let jsonString = String(data: jsonData, encoding: .utf8) {
             defaults?.set(jsonString, forKey: "siriLoggedItems")

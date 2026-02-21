@@ -194,9 +194,12 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> with WidgetsBindingObs
 
       final newItems = <FoodItem>[];
       for (final item in siriItems) {
+        final tsString = item['timestamp'] as String?;
+        final timestamp = tsString != null ? DateTime.tryParse(tsString) : null;
         newItems.add(FoodItem(
           name: item['name'] as String,
           carbs: (item['carbs'] as num).toDouble(),
+          timestamp: timestamp,
         ));
       }
 
@@ -610,12 +613,25 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> with WidgetsBindingObs
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Expanded(
-            child: Text(
-              item.name,
-              style: const TextStyle(
-                fontSize: 16,
-                color: AppColors.ink,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.name,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: AppColors.ink,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  item.timeLabel,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.muted.withValues(alpha: 0.7),
+                  ),
+                ),
+              ],
             ),
           ),
           Text(
@@ -891,11 +907,29 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> with WidgetsBindingObs
                       initialItemCount: foodItems.length,
                       itemBuilder: (context, index, animation) {
                           final item = foodItems[index];
+                          final showPeriodHeader = index == 0 ||
+                              item.dayPeriod != foodItems[index - 1].dayPeriod;
                           return SizeTransition(
                             sizeFactor: animation,
                             child: FadeTransition(
                               opacity: animation,
-                              child: Dismissible(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (showPeriodHeader)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 16, bottom: 8),
+                                      child: Text(
+                                        item.dayPeriod,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          letterSpacing: 1.5,
+                                          color: AppColors.muted,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  Dismissible(
                                 key: Key('${item.name}_$index'),
                                 direction: DismissDirection.horizontal,
                                 confirmDismiss: (direction) async {
@@ -928,6 +962,8 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> with WidgetsBindingObs
                                   ),
                                 ),
                                 child: _buildFoodTile(item),
+                              ),
+                                ],
                               ),
                             ),
                           );
