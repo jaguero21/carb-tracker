@@ -1,4 +1,4 @@
-Pclass FoodItem {
+class FoodItem {
   final String name;
   final double carbs;
 

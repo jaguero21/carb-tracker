@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -6,9 +7,37 @@ import 'package:carb_tracker/main.dart';
 import 'package:carb_tracker/models/food_item.dart';
 
 void main() {
-  // Setup SharedPreferences mock before tests
+  // Mock HomeWidget platform channel so _loadSavedData / _checkWidgetLaunch
+  // don't hang waiting for a missing platform implementation.
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      const MethodChannel('home_widget'),
+      (MethodCall methodCall) async {
+        // Return sensible defaults for every HomeWidget call
+        switch (methodCall.method) {
+          case 'getWidgetData':
+            return null;
+          case 'saveWidgetData':
+            return true;
+          case 'updateWidget':
+            return true;
+          case 'setAppGroupId':
+            return true;
+          case 'initiallyLaunchedFromHomeWidget':
+            return null;
+          default:
+            return null;
+        }
+      },
+    );
+  });
+
+  tearDown(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(const MethodChannel('home_widget'), null);
   });
 
   group('Carb Tracker Total Calculation Tests', () {
