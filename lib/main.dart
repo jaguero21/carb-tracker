@@ -266,6 +266,27 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
     }
   }
 
+  void _quickAddFood(FoodItem item) {
+    setState(() {
+      foodItems.insert(0, item);
+      totalCarbs += item.carbs;
+      showingDailyTotal = true;
+    });
+    _listKey.currentState?.insertItem(0, duration: const Duration(milliseconds: 400));
+    HapticFeedback.lightImpact();
+    _saveData();
+    _updateWidget();
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${item.name} added (${item.carbs.toStringAsFixed(1)}g)'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
   void _resetTotal() {
     for (int i = foodItems.length - 1; i >= 0; i--) {
       _listKey.currentState?.removeItem(
@@ -479,13 +500,16 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
           IconButton(
             icon: AppIcons.bookmarkIcon(size: 24),
             tooltip: 'Saved Foods',
-            onPressed: () {
-              Navigator.push(
+            onPressed: () async {
+              final result = await Navigator.push<FoodItem>(
                 context,
                 MaterialPageRoute(
                   builder: (context) => const SavedFoodListPage(),
                 ),
               );
+              if (result != null) {
+                _quickAddFood(result);
+              }
             },
           ),
         ],

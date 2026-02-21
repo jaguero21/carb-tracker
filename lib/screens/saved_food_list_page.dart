@@ -162,40 +162,57 @@ class _SavedFoodListPageState extends State<SavedFoodListPage> {
                           color: Colors.white,
                         ),
                       ),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 16,
-                          horizontal: 0,
-                        ),
-                        decoration: const BoxDecoration(
-                          border: Border(
-                            bottom: BorderSide(
-                              color: Colors.grey,
-                              width: 0.5,
+                      child: GestureDetector(
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          Navigator.pop(context, item);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 16,
+                            horizontal: 0,
+                          ),
+                          decoration: const BoxDecoration(
+                            border: Border(
+                              bottom: BorderSide(
+                                color: Colors.grey,
+                                width: 0.5,
+                              ),
                             ),
                           ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                item.name,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.black87,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  item.name,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.black87,
+                                  ),
                                 ),
                               ),
-                            ),
-                            Text(
-                              '${item.carbs.toStringAsFixed(1)}g',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                color: Colors.black54,
-                                fontWeight: FontWeight.w300,
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    '${item.carbs.toStringAsFixed(1)}g',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.black54,
+                                      fontWeight: FontWeight.w300,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Icon(
+                                    Icons.add_circle_outline,
+                                    size: 20,
+                                    color: Colors.black38,
+                                  ),
+                                ],
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     );
