@@ -7,7 +7,9 @@ import '../config/app_colors.dart';
 import '../config/app_icons.dart';
 
 class SavedFoodListPage extends StatefulWidget {
-  const SavedFoodListPage({super.key});
+  final void Function(FoodItem)? onAddFood;
+
+  const SavedFoodListPage({super.key, this.onAddFood});
 
   @override
   State<SavedFoodListPage> createState() => _SavedFoodListPageState();
@@ -162,40 +164,55 @@ class _SavedFoodListPageState extends State<SavedFoodListPage> {
                           color: Colors.white,
                         ),
                       ),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 16,
-                          horizontal: 0,
-                        ),
-                        decoration: const BoxDecoration(
-                          border: Border(
-                            bottom: BorderSide(
-                              color: Colors.grey,
-                              width: 0.5,
+                      child: GestureDetector(
+                        onTap: widget.onAddFood != null
+                            ? () {
+                                HapticFeedback.lightImpact();
+                                widget.onAddFood!(item);
+                                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('${item.name} added (${item.carbs.toStringAsFixed(1)}g)'),
+                                    duration: const Duration(seconds: 2),
+                                  ),
+                                );
+                              }
+                            : null,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 16,
+                            horizontal: 0,
+                          ),
+                          decoration: const BoxDecoration(
+                            border: Border(
+                              bottom: BorderSide(
+                                color: Colors.grey,
+                                width: 0.5,
+                              ),
                             ),
                           ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                item.name,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.black87,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  item.name,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.black87,
+                                  ),
                                 ),
                               ),
-                            ),
-                            Text(
-                              '${item.carbs.toStringAsFixed(1)}g',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                color: Colors.black54,
-                                fontWeight: FontWeight.w300,
+                              Text(
+                                '${item.carbs.toStringAsFixed(1)}g',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.black54,
+                                  fontWeight: FontWeight.w300,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     );

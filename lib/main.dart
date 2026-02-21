@@ -305,6 +305,32 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
     );
     _saveData();
     _updateWidget();
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${removedItem.name} removed'),
+          duration: const Duration(seconds: 4),
+          action: SnackBarAction(
+            label: 'Undo',
+            textColor: Colors.white,
+            onPressed: () {
+              setState(() {
+                foodItems.insert(index.clamp(0, foodItems.length), removedItem);
+                totalCarbs += removedItem.carbs;
+              });
+              _listKey.currentState?.insertItem(
+                index.clamp(0, foodItems.length - 1),
+                duration: const Duration(milliseconds: 400),
+              );
+              _saveData();
+              _updateWidget();
+            },
+          ),
+        ),
+      );
+    }
   }
 
   Widget _buildAnimatedItem(FoodItem item, Animation<double> animation) {
@@ -449,6 +475,13 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
     );
   }
 
+  String _formatTime(DateTime dt) {
+    final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+    final minute = dt.minute.toString().padLeft(2, '0');
+    final period = dt.hour < 12 ? 'AM' : 'PM';
+    return '$hour:$minute $period';
+  }
+
   Widget _buildFoodTile(FoodItem item) {
     return GestureDetector(
       onLongPress: () => _showFoodDetails(item),
@@ -469,12 +502,25 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Expanded(
-            child: Text(
-              item.name,
-              style: const TextStyle(
-                fontSize: 16,
-                color: AppColors.ink,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.name,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: AppColors.ink,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _formatTime(item.loggedAt),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.muted,
+                  ),
+                ),
+              ],
             ),
           ),
           Text(
@@ -489,6 +535,17 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
       ),
     ),
     );
+  }
+
+  void _addSavedFood(FoodItem item) {
+    setState(() {
+      foodItems.insert(0, item);
+      totalCarbs += item.carbs;
+      showingDailyTotal = false;
+    });
+    _listKey.currentState?.insertItem(0, duration: const Duration(milliseconds: 400));
+    _saveData();
+    _updateWidget();
   }
 
   Future<void> _saveToSavedFoods(FoodItem item) async {
@@ -550,7 +607,9 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const SavedFoodListPage(),
+                  builder: (context) => SavedFoodListPage(
+                    onAddFood: _addSavedFood,
+                  ),
                 ),
               );
             },
