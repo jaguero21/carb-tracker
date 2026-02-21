@@ -424,6 +424,32 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> with WidgetsBindingObs
     );
     _saveData();
     _updateWidget();
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${removedItem.name} removed'),
+          duration: const Duration(seconds: 4),
+          action: SnackBarAction(
+            label: 'Undo',
+            textColor: AppColors.honey,
+            onPressed: () {
+              setState(() {
+                foodItems.insert(index.clamp(0, foodItems.length), removedItem);
+                totalCarbs += removedItem.carbs;
+              });
+              _listKey.currentState?.insertItem(
+                index.clamp(0, foodItems.length - 1),
+                duration: const Duration(milliseconds: 400),
+              );
+              _saveData();
+              _updateWidget();
+            },
+          ),
+        ),
+      );
+    }
   }
 
   Widget _buildAnimatedItem(FoodItem item, Animation<double> animation) {
