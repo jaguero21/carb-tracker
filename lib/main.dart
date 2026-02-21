@@ -98,7 +98,7 @@ class CarbTrackerHome extends StatefulWidget {
 }
 
 // Made public for testing
-class CarbTrackerHomeState extends State<CarbTrackerHome> {
+class CarbTrackerHomeState extends State<CarbTrackerHome> with WidgetsBindingObserver {
   final TextEditingController _foodController = TextEditingController();
   final FocusNode _foodFocusNode = FocusNode();
   final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
@@ -113,8 +113,30 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadSavedData();
     _checkWidgetLaunch();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _foodFocusNode.requestFocus();
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _importSiriLoggedItems();
+      _syncTotalFromWidget();
+    }
+  }
+
+  Future<void> _syncTotalFromWidget() async {
+    final widgetTotal = await HomeWidget.getWidgetData<double>('totalCarbs') ?? 0.0;
+    if (widgetTotal > totalCarbs) {
+      setState(() {
+        totalCarbs = widgetTotal;
+      });
+      await _saveData();
+    }
   }
 
   Future<void> _checkWidgetLaunch() async {
@@ -161,26 +183,39 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
 
   Future<void> _importSiriLoggedItems() async {
     final siriItemsJson = await HomeWidget.getWidgetData<String>('siriLoggedItems');
-    if (siriItemsJson == null) return;
+    if (siriItemsJson == null || siriItemsJson.isEmpty) return;
 
     try {
       final List<dynamic> siriItems = jsonDecode(siriItemsJson);
       if (siriItems.isEmpty) return;
 
+      // Clear the buffer first to prevent re-import if something fails below
+      await HomeWidget.saveWidgetData<String?>('siriLoggedItems', null);
+
+      final newItems = <FoodItem>[];
+      for (final item in siriItems) {
+        newItems.add(FoodItem(
+          name: item['name'] as String,
+          carbs: (item['carbs'] as num).toDouble(),
+        ));
+      }
+
+      final wasEmpty = foodItems.isEmpty;
       setState(() {
-        for (final item in siriItems) {
-          final foodItem = FoodItem(
-            name: item['name'] as String,
-            carbs: (item['carbs'] as num).toDouble(),
-          );
-          foodItems.insert(0, foodItem);
-          _listKey.currentState?.insertItem(0, duration: const Duration(milliseconds: 400));
+        for (final item in newItems) {
+          foodItems.insert(0, item);
         }
-        // Sync totalCarbs from shared UserDefaults (Siri already updated it)
       });
 
-      // Clear the Siri buffer so we don't re-import on next launch
-      await HomeWidget.saveWidgetData<String?>('siriLoggedItems', null);
+      // If the list was empty, AnimatedList is freshly created with
+      // initialItemCount already set — no need to call insertItem.
+      // Only call insertItem when the list already existed.
+      if (!wasEmpty) {
+        for (var i = 0; i < newItems.length; i++) {
+          _listKey.currentState?.insertItem(0, duration: const Duration(milliseconds: 400));
+        }
+      }
+
       await _saveData();
     } catch (_) {
       // Ignore malformed Siri data
@@ -402,6 +437,59 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
   }
 
   void _showFoodDetails(FoodItem item) {
+    if (item.details == null) {
+      _fetchAndShowDetails(item);
+      return;
+    }
+
+    _showDetailsDialog(item);
+  }
+
+  Future<void> _fetchAndShowDetails(FoodItem item) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(color: AppColors.sage),
+      ),
+    );
+
+    try {
+      final results = await _perplexityService.getMultipleCarbCounts(item.name);
+      if (!mounted) return;
+      Navigator.pop(context); // dismiss loading
+
+      if (results.isNotEmpty) {
+        final enriched = results.first;
+        // Update the item in the list with full details
+        final index = foodItems.indexOf(item);
+        if (index != -1) {
+          setState(() {
+            foodItems[index] = FoodItem(
+              name: item.name,
+              carbs: item.carbs,
+              details: enriched.details,
+              citations: enriched.citations,
+            );
+          });
+          _showDetailsDialog(foodItems[index]);
+        } else {
+          _showDetailsDialog(enriched);
+        }
+      }
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context); // dismiss loading
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not load details: ${e.toString().replaceAll('Exception:', '').trim()}'),
+          backgroundColor: AppColors.terracotta,
+        ),
+      );
+    }
+  }
+
+  void _showDetailsDialog(FoodItem item) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -829,6 +917,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _foodController.dispose();
     _foodFocusNode.dispose();
     super.dispose();
