@@ -23,6 +23,10 @@ struct CarbDataStore {
         defaults?.double(forKey: "lastFoodCarbs") ?? 0.0
     }
 
+    static func dailyCarbGoal() -> Double? {
+        defaults?.object(forKey: "dailyCarbGoal") as? Double
+    }
+
     static func addFood(name: String, carbs: Double) {
         let newTotal = totalCarbs() + carbs
         defaults?.set(newTotal, forKey: "totalCarbs")
@@ -210,6 +214,7 @@ struct CheckCarbsIntent: AppIntent {
         let total = CarbDataStore.totalCarbs()
         let lastFood = CarbDataStore.lastFoodName()
         let lastCarbs = CarbDataStore.lastFoodCarbs()
+        let goal = CarbDataStore.dailyCarbGoal()
 
         let formattedTotal = String(format: "%.1f", total)
 
@@ -217,12 +222,23 @@ struct CheckCarbsIntent: AppIntent {
             return .result(dialog: "You haven't tracked any carbs today. Open CarpeCarb to start logging.")
         }
 
-        if lastFood.isEmpty {
-            return .result(dialog: "You've had \(formattedTotal) grams of carbs today.")
+        var message = "You've had \(formattedTotal) grams of carbs today."
+
+        if !lastFood.isEmpty {
+            let formattedLast = String(format: "%.1f", lastCarbs)
+            message += " Your last entry was \(lastFood) at \(formattedLast) grams."
         }
 
-        let formattedLast = String(format: "%.1f", lastCarbs)
-        return .result(dialog: "You've had \(formattedTotal) grams of carbs today. Your last entry was \(lastFood) at \(formattedLast) grams.")
+        if let goal = goal, goal > 0 {
+            if total > goal {
+                message += " You've exceeded your \(String(format: "%.0f", goal))g goal."
+            } else {
+                let pct = Int((total / goal) * 100)
+                message += " That's \(pct)% of your \(String(format: "%.0f", goal))g goal."
+            }
+        }
+
+        return .result(dialog: "\(message)")
     }
 }
 

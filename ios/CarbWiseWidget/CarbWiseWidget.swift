@@ -5,17 +5,20 @@ struct CarbWidgetData {
     let totalCarbs: Double
     let lastFoodName: String
     let lastFoodCarbs: Double
+    let dailyCarbGoal: Double?
 
     static let placeholder = CarbWidgetData(
         totalCarbs: 42.5,
         lastFoodName: "Brown Rice",
-        lastFoodCarbs: 45.0
+        lastFoodCarbs: 45.0,
+        dailyCarbGoal: 50.0
     )
 
     static let empty = CarbWidgetData(
         totalCarbs: 0.0,
         lastFoodName: "",
-        lastFoodCarbs: 0.0
+        lastFoodCarbs: 0.0,
+        dailyCarbGoal: nil
     )
 }
 
@@ -25,7 +28,8 @@ struct CarbWiseProvider: TimelineProvider {
     }
 
     func getSnapshot(in context: Context, completion: @escaping (CarbWiseEntry) -> Void) {
-        completion(CarbWiseEntry(date: Date(), data: loadData()))
+        let data = context.isPreview ? .placeholder : loadData()
+        completion(CarbWiseEntry(date: Date(), data: data))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<CarbWiseEntry>) -> Void) {
@@ -39,10 +43,12 @@ struct CarbWiseProvider: TimelineProvider {
 
     private func loadData() -> CarbWidgetData {
         let defaults = UserDefaults(suiteName: "group.com.jamesaguero.mycarbtracker")
+        let goal = defaults?.object(forKey: "dailyCarbGoal") as? Double
         return CarbWidgetData(
             totalCarbs: defaults?.double(forKey: "totalCarbs") ?? 0.0,
             lastFoodName: defaults?.string(forKey: "lastFoodName") ?? "",
-            lastFoodCarbs: defaults?.double(forKey: "lastFoodCarbs") ?? 0.0
+            lastFoodCarbs: defaults?.double(forKey: "lastFoodCarbs") ?? 0.0,
+            dailyCarbGoal: goal
         )
     }
 }
@@ -71,11 +77,35 @@ struct CarbWiseWidgetEntryView: View {
 
             Spacer()
 
-            Text(String(format: "%.1fg", entry.data.totalCarbs))
-                .font(.system(size: 32, weight: .light, design: .rounded))
-                .foregroundStyle(.primary)
-                .minimumScaleFactor(0.7)
-                .lineLimit(1)
+            if let goal = entry.data.dailyCarbGoal, goal > 0 {
+                Text(String(format: "%.1f / %.0fg", entry.data.totalCarbs, goal))
+                    .font(.system(size: 26, weight: .light, design: .rounded))
+                    .foregroundStyle(entry.data.totalCarbs > goal ? Color(red: 212/255, green: 113/255, blue: 78/255) : .primary)
+                    .minimumScaleFactor(0.6)
+                    .lineLimit(1)
+
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Color.secondary.opacity(0.15))
+                            .frame(height: 3)
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(entry.data.totalCarbs > goal
+                                  ? Color(red: 212/255, green: 113/255, blue: 78/255)
+                                  : entry.data.totalCarbs > goal * 0.8
+                                    ? Color(red: 232/255, green: 169/255, blue: 60/255)
+                                    : sage)
+                            .frame(width: geo.size.width * min(entry.data.totalCarbs / goal, 1.0), height: 3)
+                    }
+                }
+                .frame(height: 3)
+            } else {
+                Text(String(format: "%.1fg", entry.data.totalCarbs))
+                    .font(.system(size: 32, weight: .light, design: .rounded))
+                    .foregroundStyle(.primary)
+                    .minimumScaleFactor(0.7)
+                    .lineLimit(1)
+            }
 
             Text("total carbs")
                 .font(.system(size: 11))

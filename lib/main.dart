@@ -108,6 +108,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
   double totalCarbs = 0.0;
   bool isLoading = false;
   bool showingDailyTotal = false;
+  double? dailyCarbGoal;
 
   @override
   void initState() {
@@ -135,12 +136,16 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
       'lastFoodCarbs',
       foodItems.isNotEmpty ? foodItems.first.carbs : 0.0,
     );
+    if (dailyCarbGoal != null) {
+      await HomeWidget.saveWidgetData<double>('dailyCarbGoal', dailyCarbGoal!);
+    }
     await HomeWidget.updateWidget(iOSName: 'CarbWiseWidget');
   }
 
   Future<void> _loadSavedData() async {
     final prefs = await SharedPreferences.getInstance();
     final savedTotal = prefs.getDouble('total_carbs') ?? 0.0;
+    final savedGoal = prefs.getDouble('daily_carb_goal');
 
     // Also check the shared UserDefaults total (Siri may have updated it)
     final widgetTotal = await HomeWidget.getWidgetData<double>('totalCarbs') ?? 0.0;
@@ -148,6 +153,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
 
     setState(() {
       totalCarbs = effectiveTotal;
+      dailyCarbGoal = savedGoal;
     });
     // Pick up any food items logged via Siri while the app was closed
     await _importSiriLoggedItems();
@@ -184,6 +190,73 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
   Future<void> _saveData() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble('total_carbs', totalCarbs);
+  }
+
+  Future<void> _saveGoal(double? goal) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (goal != null) {
+      await prefs.setDouble('daily_carb_goal', goal);
+      await HomeWidget.saveWidgetData<double>('dailyCarbGoal', goal);
+    } else {
+      await prefs.remove('daily_carb_goal');
+      await HomeWidget.saveWidgetData<double?>('dailyCarbGoal', null);
+    }
+    await HomeWidget.updateWidget(iOSName: 'CarbWiseWidget');
+  }
+
+  void _showGoalDialog() {
+    final controller = TextEditingController(
+      text: dailyCarbGoal != null ? dailyCarbGoal!.toStringAsFixed(0) : '',
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Daily Carb Goal'),
+        content: TextField(
+          controller: controller,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: 'e.g. 50',
+            suffixText: 'g',
+          ),
+        ),
+        actions: [
+          if (dailyCarbGoal != null)
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  dailyCarbGoal = null;
+                });
+                _saveGoal(null);
+                Navigator.pop(context);
+              },
+              child: const Text(
+                'Remove',
+                style: TextStyle(color: AppColors.terracotta),
+              ),
+            ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              final value = double.tryParse(controller.text.trim());
+              if (value != null && value > 0) {
+                setState(() {
+                  dailyCarbGoal = value;
+                });
+                _saveGoal(value);
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Set'),
+          ),
+        ],
+      ),
+    );
   }
 
   String? _validateFoodInput(String input) {
@@ -566,6 +639,52 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
                       ),
                     ],
                   ),
+                ),
+              ),
+
+              // Goal progress indicator
+              GestureDetector(
+                onTap: _showGoalDialog,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 24.0),
+                  child: dailyCarbGoal != null
+                      ? Column(
+                          children: [
+                            Text(
+                              '${totalCarbs.toStringAsFixed(1)} / ${dailyCarbGoal!.toStringAsFixed(0)}g',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: totalCarbs > dailyCarbGoal!
+                                    ? AppColors.terracotta
+                                    : AppColors.muted,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: LinearProgressIndicator(
+                                value: (totalCarbs / dailyCarbGoal!).clamp(0.0, 1.0),
+                                minHeight: 4,
+                                backgroundColor: AppColors.border,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  totalCarbs > dailyCarbGoal!
+                                      ? AppColors.terracotta
+                                      : totalCarbs > dailyCarbGoal! * 0.8
+                                          ? AppColors.honey
+                                          : AppColors.sage,
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      : Text(
+                          'Set a daily goal',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppColors.muted.withValues(alpha: 0.6),
+                          ),
+                        ),
                 ),
               ),
 
