@@ -5,17 +5,20 @@ struct CarbWidgetData {
     let totalCarbs: Double
     let lastFoodName: String
     let lastFoodCarbs: Double
+    let dailyGoal: Double?
 
     static let placeholder = CarbWidgetData(
         totalCarbs: 42.5,
         lastFoodName: "Brown Rice",
-        lastFoodCarbs: 45.0
+        lastFoodCarbs: 45.0,
+        dailyGoal: 100.0
     )
 
     static let empty = CarbWidgetData(
         totalCarbs: 0.0,
         lastFoodName: "",
-        lastFoodCarbs: 0.0
+        lastFoodCarbs: 0.0,
+        dailyGoal: nil
     )
 }
 
@@ -39,10 +42,12 @@ struct CarbWiseProvider: TimelineProvider {
 
     private func loadData() -> CarbWidgetData {
         let defaults = UserDefaults(suiteName: "group.com.jamesaguero.mycarbtracker")
+        let goalValue = defaults?.double(forKey: "dailyCarbGoal") ?? 0.0
         return CarbWidgetData(
             totalCarbs: defaults?.double(forKey: "totalCarbs") ?? 0.0,
             lastFoodName: defaults?.string(forKey: "lastFoodName") ?? "",
-            lastFoodCarbs: defaults?.double(forKey: "lastFoodCarbs") ?? 0.0
+            lastFoodCarbs: defaults?.double(forKey: "lastFoodCarbs") ?? 0.0,
+            dailyGoal: goalValue > 0 ? goalValue : nil
         )
     }
 }
@@ -52,10 +57,39 @@ struct CarbWiseEntry: TimelineEntry {
     let data: CarbWidgetData
 }
 
+struct GoalRingView: View {
+    let progress: Double
+    let isOver: Bool
+
+    private let sage = Color(red: 125/255, green: 155/255, blue: 118/255)
+    private let terracotta = Color(red: 212/255, green: 113/255, blue: 78/255)
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(Color.primary.opacity(0.08), lineWidth: 4)
+            Circle()
+                .trim(from: 0, to: min(progress, 1.0))
+                .stroke(
+                    isOver ? terracotta : sage,
+                    style: StrokeStyle(lineWidth: 4, lineCap: .round)
+                )
+                .rotationEffect(.degrees(-90))
+        }
+    }
+}
+
 struct CarbWiseWidgetEntryView: View {
     var entry: CarbWiseProvider.Entry
 
     private let sage = Color(red: 125/255, green: 155/255, blue: 118/255)
+    private let terracotta = Color(red: 212/255, green: 113/255, blue: 78/255)
+
+    private var hasGoal: Bool { entry.data.dailyGoal != nil }
+    private var isOver: Bool {
+        guard let goal = entry.data.dailyGoal else { return false }
+        return entry.data.totalCarbs > goal
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -71,15 +105,49 @@ struct CarbWiseWidgetEntryView: View {
 
             Spacer()
 
-            Text(String(format: "%.1fg", entry.data.totalCarbs))
-                .font(.system(size: 32, weight: .light, design: .rounded))
-                .foregroundStyle(.primary)
-                .minimumScaleFactor(0.7)
-                .lineLimit(1)
+            if hasGoal {
+                HStack {
+                    Spacer()
+                    ZStack {
+                        GoalRingView(
+                            progress: entry.data.totalCarbs / entry.data.dailyGoal!,
+                            isOver: isOver
+                        )
+                        .frame(width: 64, height: 64)
 
-            Text("total carbs")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
+                        Text(String(format: "%.0fg", entry.data.totalCarbs))
+                            .font(.system(size: 18, weight: .light, design: .rounded))
+                            .foregroundStyle(.primary)
+                            .minimumScaleFactor(0.6)
+                            .lineLimit(1)
+                    }
+                    Spacer()
+                }
+
+                HStack {
+                    Spacer()
+                    if isOver {
+                        Text(String(format: "+%.0fg over", entry.data.totalCarbs - entry.data.dailyGoal!))
+                            .font(.system(size: 10))
+                            .foregroundStyle(terracotta)
+                    } else {
+                        Text(String(format: "%.0fg left", entry.data.dailyGoal! - entry.data.totalCarbs))
+                            .font(.system(size: 10))
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                }
+            } else {
+                Text(String(format: "%.1fg", entry.data.totalCarbs))
+                    .font(.system(size: 32, weight: .light, design: .rounded))
+                    .foregroundStyle(.primary)
+                    .minimumScaleFactor(0.7)
+                    .lineLimit(1)
+
+                Text("total carbs")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
 
             Spacer()
 

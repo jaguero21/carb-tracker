@@ -23,6 +23,11 @@ struct CarbDataStore {
         defaults?.double(forKey: "lastFoodCarbs") ?? 0.0
     }
 
+    static func dailyCarbGoal() -> Double? {
+        let value = defaults?.double(forKey: "dailyCarbGoal") ?? 0.0
+        return value > 0 ? value : nil
+    }
+
     static func addFood(name: String, carbs: Double) {
         let newTotal = totalCarbs() + carbs
         defaults?.set(newTotal, forKey: "totalCarbs")
@@ -210,6 +215,7 @@ struct CheckCarbsIntent: AppIntent {
         let total = CarbDataStore.totalCarbs()
         let lastFood = CarbDataStore.lastFoodName()
         let lastCarbs = CarbDataStore.lastFoodCarbs()
+        let goal = CarbDataStore.dailyCarbGoal()
 
         let formattedTotal = String(format: "%.1f", total)
 
@@ -217,12 +223,25 @@ struct CheckCarbsIntent: AppIntent {
             return .result(dialog: "You haven't tracked any carbs today. Open CarpeCarb to start logging.")
         }
 
-        if lastFood.isEmpty {
-            return .result(dialog: "You've had \(formattedTotal) grams of carbs today.")
+        var message = "You've had \(formattedTotal) grams of carbs today."
+
+        if let goal = goal {
+            let formattedGoal = String(format: "%.0f", goal)
+            if total >= goal {
+                let over = String(format: "%.1f", total - goal)
+                message += " You're \(over) grams over your \(formattedGoal) gram goal."
+            } else {
+                let remaining = String(format: "%.1f", goal - total)
+                message += " You have \(remaining) grams remaining of your \(formattedGoal) gram goal."
+            }
         }
 
-        let formattedLast = String(format: "%.1f", lastCarbs)
-        return .result(dialog: "You've had \(formattedTotal) grams of carbs today. Your last entry was \(lastFood) at \(formattedLast) grams.")
+        if !lastFood.isEmpty {
+            let formattedLast = String(format: "%.1f", lastCarbs)
+            message += " Your last entry was \(lastFood) at \(formattedLast) grams."
+        }
+
+        return .result(dialog: IntentDialog(stringLiteral: message))
     }
 }
 

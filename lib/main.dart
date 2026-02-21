@@ -6,6 +6,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:home_widget/home_widget.dart';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'services/perplexity_service.dart';
 import 'models/food_item.dart';
 import 'screens/saved_food_list_page.dart';
@@ -108,6 +109,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
   double totalCarbs = 0.0;
   bool isLoading = false;
   bool showingDailyTotal = false;
+  double? dailyCarbGoal;
 
   @override
   void initState() {
@@ -135,12 +137,14 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
       'lastFoodCarbs',
       foodItems.isNotEmpty ? foodItems.first.carbs : 0.0,
     );
+    await HomeWidget.saveWidgetData<double>('dailyCarbGoal', dailyCarbGoal ?? 0.0);
     await HomeWidget.updateWidget(iOSName: 'CarbWiseWidget');
   }
 
   Future<void> _loadSavedData() async {
     final prefs = await SharedPreferences.getInstance();
     final savedTotal = prefs.getDouble('total_carbs') ?? 0.0;
+    final savedGoal = prefs.getDouble('daily_carb_goal');
 
     // Also check the shared UserDefaults total (Siri may have updated it)
     final widgetTotal = await HomeWidget.getWidgetData<double>('totalCarbs') ?? 0.0;
@@ -148,6 +152,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
 
     setState(() {
       totalCarbs = effectiveTotal;
+      dailyCarbGoal = savedGoal;
     });
     // Pick up any food items logged via Siri while the app was closed
     await _importSiriLoggedItems();
@@ -184,6 +189,11 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
   Future<void> _saveData() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble('total_carbs', totalCarbs);
+    if (dailyCarbGoal != null) {
+      await prefs.setDouble('daily_carb_goal', dailyCarbGoal!);
+    } else {
+      await prefs.remove('daily_carb_goal');
+    }
   }
 
   String? _validateFoodInput(String input) {
@@ -382,6 +392,63 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
     );
   }
 
+  void _showGoalDialog() {
+    final controller = TextEditingController(
+      text: dailyCarbGoal != null ? dailyCarbGoal!.toStringAsFixed(0) : '',
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Daily Carb Goal'),
+        content: TextField(
+          controller: controller,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: 'e.g. 50',
+            suffixText: 'g',
+          ),
+        ),
+        actions: [
+          if (dailyCarbGoal != null)
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  dailyCarbGoal = null;
+                });
+                _saveData();
+                _updateWidget();
+                Navigator.pop(context);
+              },
+              child: const Text(
+                'Clear',
+                style: TextStyle(color: AppColors.terracotta),
+              ),
+            ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              final value = double.tryParse(controller.text.trim());
+              if (value != null && value > 0) {
+                setState(() {
+                  dailyCarbGoal = value;
+                });
+                _saveData();
+                _updateWidget();
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildFoodTile(FoodItem item) {
     return GestureDetector(
       onLongPress: () => _showFoodDetails(item),
@@ -505,9 +572,9 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-              // Carb Display — long press to toggle between last item and daily total
+              // Carb Display — tap to toggle, long press to set goal
               GestureDetector(
-                onLongPress: foodItems.isNotEmpty
+                onTap: foodItems.isNotEmpty
                     ? () {
                         setState(() {
                           showingDailyTotal = !showingDailyTotal;
@@ -515,6 +582,10 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
                         HapticFeedback.lightImpact();
                       }
                     : null,
+                onLongPress: () {
+                  HapticFeedback.mediumImpact();
+                  _showGoalDialog();
+                },
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 32.0),
                   child: Column(
@@ -529,17 +600,57 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
                           letterSpacing: 1.2,
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        showingDailyTotal || foodItems.isEmpty
-                            ? '${totalCarbs.toStringAsFixed(1)}g'
-                            : '${foodItems.first.carbs.toStringAsFixed(1)}g',
-                        style: const TextStyle(
-                          fontSize: 56,
-                          fontWeight: FontWeight.w300,
-                          color: AppColors.ink,
+                      const SizedBox(height: 16),
+                      if (dailyCarbGoal != null)
+                        SizedBox(
+                          width: 160,
+                          height: 160,
+                          child: CustomPaint(
+                            painter: _GoalRingPainter(
+                              progress: totalCarbs / dailyCarbGoal!,
+                              trackColor: AppColors.border,
+                              fillColor: totalCarbs > dailyCarbGoal!
+                                  ? AppColors.terracotta
+                                  : AppColors.sage,
+                            ),
+                            child: Center(
+                              child: Text(
+                                showingDailyTotal || foodItems.isEmpty
+                                    ? '${totalCarbs.toStringAsFixed(1)}g'
+                                    : '${foodItems.first.carbs.toStringAsFixed(1)}g',
+                                style: const TextStyle(
+                                  fontSize: 42,
+                                  fontWeight: FontWeight.w300,
+                                  color: AppColors.ink,
+                                ),
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        Text(
+                          showingDailyTotal || foodItems.isEmpty
+                              ? '${totalCarbs.toStringAsFixed(1)}g'
+                              : '${foodItems.first.carbs.toStringAsFixed(1)}g',
+                          style: const TextStyle(
+                            fontSize: 56,
+                            fontWeight: FontWeight.w300,
+                            color: AppColors.ink,
+                          ),
                         ),
-                      ),
+                      const SizedBox(height: 8),
+                      if (dailyCarbGoal != null)
+                        Text(
+                          totalCarbs >= dailyCarbGoal!
+                              ? 'over by ${(totalCarbs - dailyCarbGoal!).toStringAsFixed(1)}g'
+                              : '${(dailyCarbGoal! - totalCarbs).toStringAsFixed(1)}g remaining',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: totalCarbs > dailyCarbGoal!
+                                ? AppColors.terracotta
+                                : AppColors.muted,
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -690,4 +801,51 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
     _foodFocusNode.dispose();
     super.dispose();
   }
+}
+
+class _GoalRingPainter extends CustomPainter {
+  final double progress;
+  final Color trackColor;
+  final Color fillColor;
+
+  _GoalRingPainter({
+    required this.progress,
+    required this.trackColor,
+    required this.fillColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (size.shortestSide - 8) / 2;
+    const strokeWidth = 6.0;
+
+    // Track
+    final trackPaint = Paint()
+      ..color = trackColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+    canvas.drawCircle(center, radius, trackPaint);
+
+    // Fill arc
+    final fillPaint = Paint()
+      ..color = fillColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+    final sweepAngle = 2 * math.pi * progress.clamp(0.0, 1.0);
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      -math.pi / 2,
+      sweepAngle,
+      false,
+      fillPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_GoalRingPainter oldDelegate) =>
+      progress != oldDelegate.progress ||
+      fillColor != oldDelegate.fillColor;
 }
