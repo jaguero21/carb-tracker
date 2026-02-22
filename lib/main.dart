@@ -27,6 +27,122 @@ Future<void> main() async {
   runApp(const CarbTrackerApp());
 }
 
+ThemeData _lightTheme() {
+  return ThemeData(
+    primarySwatch: sageSwatch,
+    primaryColor: AppColors.sage,
+    scaffoldBackgroundColor: AppColors.cream,
+    useMaterial3: true,
+    colorScheme: ColorScheme.light(
+      primary: AppColors.sage,
+      secondary: AppColors.honey,
+      tertiary: AppColors.terracotta,
+      surface: AppColors.warmWhite,
+      error: AppColors.terracotta,
+      onPrimary: Colors.white,
+      onSecondary: AppColors.ink,
+      onSurface: AppColors.ink,
+      onError: Colors.white,
+      onSurfaceVariant: AppColors.muted,
+      outlineVariant: AppColors.border,
+      outline: AppColors.borderMedium,
+    ),
+    appBarTheme: const AppBarTheme(
+      backgroundColor: AppColors.cream,
+      foregroundColor: AppColors.ink,
+      elevation: 0,
+      systemOverlayStyle: SystemUiOverlayStyle.dark,
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppColors.sage,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+    ),
+    textTheme: const TextTheme(
+      bodyLarge: TextStyle(color: AppColors.ink),
+      bodyMedium: TextStyle(color: AppColors.charcoal),
+      bodySmall: TextStyle(color: AppColors.muted),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      border: OutlineInputBorder(
+        borderSide: const BorderSide(color: AppColors.border, width: 1.5),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderSide: const BorderSide(color: AppColors.borderMedium, width: 1.5),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderSide: const BorderSide(color: AppColors.sage, width: 2),
+        borderRadius: BorderRadius.circular(8),
+      ),
+    ),
+  );
+}
+
+ThemeData _darkTheme() {
+  return ThemeData(
+    primarySwatch: sageSwatch,
+    primaryColor: AppColors.sage,
+    scaffoldBackgroundColor: AppColors.darkBackground,
+    useMaterial3: true,
+    colorScheme: ColorScheme.dark(
+      primary: AppColors.sage,
+      secondary: AppColors.honey,
+      tertiary: AppColors.terracotta,
+      surface: AppColors.darkSurface,
+      error: AppColors.terracotta,
+      onPrimary: Colors.white,
+      onSecondary: AppColors.lightInk,
+      onSurface: AppColors.lightInk,
+      onError: Colors.white,
+      onSurfaceVariant: AppColors.darkMuted,
+      outlineVariant: AppColors.darkBorder,
+      outline: AppColors.darkBorderMedium,
+    ),
+    appBarTheme: const AppBarTheme(
+      backgroundColor: AppColors.darkBackground,
+      foregroundColor: AppColors.lightInk,
+      elevation: 0,
+      systemOverlayStyle: SystemUiOverlayStyle.light,
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppColors.sage,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+    ),
+    textTheme: const TextTheme(
+      bodyLarge: TextStyle(color: AppColors.lightInk),
+      bodyMedium: TextStyle(color: AppColors.lightCharcoal),
+      bodySmall: TextStyle(color: AppColors.darkMuted),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      border: OutlineInputBorder(
+        borderSide: const BorderSide(color: AppColors.darkBorder, width: 1.5),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderSide: const BorderSide(color: AppColors.darkBorderMedium, width: 1.5),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderSide: const BorderSide(color: AppColors.sage, width: 2),
+        borderRadius: BorderRadius.circular(8),
+      ),
+    ),
+  );
+}
+
 class CarbTrackerApp extends StatelessWidget {
   const CarbTrackerApp({super.key});
 
@@ -34,58 +150,9 @@ class CarbTrackerApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'CarpeCarb',
-      theme: ThemeData(
-        primarySwatch: sageSwatch,
-        primaryColor: AppColors.sage,
-        scaffoldBackgroundColor: AppColors.cream,
-        useMaterial3: true,
-        colorScheme: ColorScheme.light(
-          primary: AppColors.sage,
-          secondary: AppColors.honey,
-          tertiary: AppColors.terracotta,
-          surface: AppColors.warmWhite,
-          error: AppColors.terracotta,
-          onPrimary: Colors.white,
-          onSecondary: AppColors.ink,
-          onSurface: AppColors.ink,
-          onError: Colors.white,
-        ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: AppColors.cream,
-          foregroundColor: AppColors.ink,
-          elevation: 0,
-          systemOverlayStyle: SystemUiOverlayStyle.dark,
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.sage,
-            foregroundColor: Colors.white,
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-        ),
-        textTheme: const TextTheme(
-          bodyLarge: TextStyle(color: AppColors.ink),
-          bodyMedium: TextStyle(color: AppColors.charcoal),
-          bodySmall: TextStyle(color: AppColors.muted),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          border: OutlineInputBorder(
-            borderSide: const BorderSide(color: AppColors.border, width: 1.5),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderSide: const BorderSide(color: AppColors.borderMedium, width: 1.5),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderSide: const BorderSide(color: AppColors.sage, width: 2),
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
-      ),
+      theme: _lightTheme(),
+      darkTheme: _darkTheme(),
+      themeMode: ThemeMode.system,
       home: const CarbTrackerHome(),
     );
   }
@@ -353,6 +420,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
             text: _buildDetailsTextSpan(
               item.details ?? 'No details available for this item.',
               item.citations,
+              baseColor: Theme.of(context).colorScheme.onSurface,
             ),
           ),
         ),
@@ -367,7 +435,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
   }
 
   /// Builds a TextSpan that renders [N] citation references as tappable links.
-  TextSpan _buildDetailsTextSpan(String text, List<String> citations) {
+  TextSpan _buildDetailsTextSpan(String text, List<String> citations, {required Color baseColor}) {
     final spans = <InlineSpan>[];
     final citationPattern = RegExp(r'\[(\d+)\]');
     var lastEnd = 0;
@@ -409,9 +477,9 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
     }
 
     return TextSpan(
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 15,
-        color: AppColors.ink,
+        color: baseColor,
         height: 1.5,
       ),
       children: spans,
@@ -490,10 +558,10 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
         vertical: 16,
         horizontal: 0,
       ),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
-            color: AppColors.border,
+            color: Theme.of(context).colorScheme.outlineVariant,
             width: 1,
           ),
         ),
@@ -507,17 +575,17 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
               children: [
                 Text(
                   item.name,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
-                    color: AppColors.ink,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   _formatTime(item.loggedAt),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: AppColors.muted,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -525,9 +593,9 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
           ),
           Text(
             '${item.carbs.toStringAsFixed(1)}g',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
-              color: AppColors.muted,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w300,
             ),
           ),
@@ -655,7 +723,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
                             : foodItems.first.name,
                         style: TextStyle(
                           fontSize: 16,
-                          color: AppColors.muted,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                           letterSpacing: 1.2,
                         ),
                       ),
@@ -667,7 +735,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
                           child: CustomPaint(
                             painter: _GoalRingPainter(
                               progress: totalCarbs / dailyCarbGoal!,
-                              trackColor: AppColors.border,
+                              trackColor: Theme.of(context).colorScheme.outlineVariant,
                               fillColor: totalCarbs > dailyCarbGoal!
                                   ? AppColors.terracotta
                                   : AppColors.sage,
@@ -677,10 +745,10 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
                                 showingDailyTotal || foodItems.isEmpty
                                     ? '${totalCarbs.toStringAsFixed(1)}g'
                                     : '${foodItems.first.carbs.toStringAsFixed(1)}g',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 42,
                                   fontWeight: FontWeight.w300,
-                                  color: AppColors.ink,
+                                  color: Theme.of(context).colorScheme.onSurface,
                                 ),
                               ),
                             ),
@@ -691,10 +759,10 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
                           showingDailyTotal || foodItems.isEmpty
                               ? '${totalCarbs.toStringAsFixed(1)}g'
                               : '${foodItems.first.carbs.toStringAsFixed(1)}g',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 56,
                             fontWeight: FontWeight.w300,
-                            color: AppColors.ink,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                       const SizedBox(height: 8),
@@ -707,7 +775,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
                             fontSize: 14,
                             color: totalCarbs > dailyCarbGoal!
                                 ? AppColors.terracotta
-                                : AppColors.muted,
+                                : Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                     ],
@@ -721,7 +789,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
                 focusNode: _foodFocusNode,
                 decoration: InputDecoration(
                   hintText: 'Enter food item...',
-                  hintStyle: TextStyle(color: AppColors.muted.withValues(alpha: 0.6)),
+                  hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 16,
@@ -769,7 +837,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
                       style: TextStyle(
                         fontSize: 12,
                         letterSpacing: 1.5,
-                        color: AppColors.muted,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -791,7 +859,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
                         child: Text(
                           'No foods added yet',
                           style: TextStyle(
-                            color: AppColors.muted,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                             fontSize: 14,
                           ),
                         ),
