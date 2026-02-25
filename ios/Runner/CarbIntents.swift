@@ -28,7 +28,7 @@ struct CarbDataStore {
         return value > 0 ? value : nil
     }
 
-    static func addFood(name: String, carbs: Double) {
+    static func addFood(name: String, carbs: Double, details: String? = nil, citations: [String] = []) {
         let newTotal = totalCarbs() + carbs
         defaults?.set(newTotal, forKey: "totalCarbs")
         defaults?.set(name, forKey: "lastFoodName")
@@ -44,7 +44,18 @@ struct CarbDataStore {
            let parsed = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
             siriItems = parsed
         }
-        siriItems.append(["name": name, "carbs": carbs])
+        var item: [String: Any] = [
+            "name": name,
+            "carbs": carbs,
+            "loggedAt": ISO8601DateFormatter().string(from: Date()),
+        ]
+        if let details = details {
+            item["details"] = details
+        }
+        if !citations.isEmpty {
+            item["citations"] = citations
+        }
+        siriItems.append(item)
         if let jsonData = try? JSONSerialization.data(withJSONObject: siriItems),
            let jsonString = String(data: jsonData, encoding: .utf8) {
             defaults?.set(jsonString, forKey: "siriLoggedItems")
@@ -88,7 +99,7 @@ struct EnvReader {
 // MARK: - Perplexity API client
 
 struct PerplexityClient {
-    static func lookupCarbs(for foodItem: String) async throws -> (name: String, carbs: Double) {
+    static func lookupCarbs(for foodItem: String) async throws -> (name: String, carbs: Double, details: String?, citations: [String]) {
         guard let apiKey = EnvReader.apiKey(), !apiKey.isEmpty else {
             throw IntentError.message("API key not configured.")
         }
@@ -106,10 +117,13 @@ struct PerplexityClient {
                 [
                     "role": "system",
                     "content": "You are a precise nutrition assistant. The user will name a food item. "
-                        + "Respond with ONLY a JSON object with \"name\" (short descriptive name) and \"carbs\" (number of carb grams as a number). "
-                        + "Use official nutrition data from the restaurant or manufacturer website when available. "
+                        + "Respond with ONLY a JSON object with \"name\" (short descriptive name), \"carbs\" (number of carb grams as a number), "
+                        + "and \"details\" (cite the specific source used e.g. restaurant website, USDA database, nutrition label, and include the serving size). "
+                        + "IMPORTANT: Always use official nutrition data from the restaurant or manufacturer website when available. "
+                        + "For branded/restaurant items, use the exact values from their published nutrition information. "
                         + "For generic foods, use USDA FoodData Central values. "
-                        + "Example: {\"name\":\"Banana\",\"carbs\":27} "
+                        + "Never estimate or average — use the most authoritative source available. "
+                        + "Example: {\"name\":\"Big Mac\",\"carbs\":45,\"details\":\"Per McDonald's official nutrition information, a Big Mac contains 45g of carbs (standard serving).\"} "
                         + "Return ONLY the JSON object, no other text."
                 ],
                 [
@@ -117,7 +131,7 @@ struct PerplexityClient {
                     "content": foodItem
                 ]
             ],
-            "max_tokens": 150,
+            "max_tokens": 300,
             "temperature": 0.0
         ]
 
@@ -146,10 +160,19 @@ struct PerplexityClient {
             throw IntentError.message("Could not parse API response.")
         }
 
-        return try parseFood(from: content.trimmingCharacters(in: .whitespacesAndNewlines))
+        // Extract top-level citations from Perplexity response
+        let citations: [String]
+        if let citationArray = json["citations"] as? [String] {
+            citations = citationArray
+        } else {
+            citations = []
+        }
+
+        let parsed = try parseFood(from: content.trimmingCharacters(in: .whitespacesAndNewlines))
+        return (name: parsed.name, carbs: parsed.carbs, details: parsed.details, citations: citations)
     }
 
-    private static func parseFood(from content: String) throws -> (name: String, carbs: Double) {
+    private static func parseFood(from content: String) throws -> (name: String, carbs: Double, details: String?) {
         // Extract JSON object from response (handle markdown code fences)
         var jsonStr = content
         if let match = jsonStr.range(of: #"\{[\s\S]*\}"#, options: .regularExpression) {
@@ -163,7 +186,9 @@ struct PerplexityClient {
             throw IntentError.message("Could not parse food data.")
         }
 
-        return (name: name, carbs: carbs.doubleValue)
+        let details = obj["details"] as? String
+
+        return (name: name, carbs: carbs.doubleValue, details: details)
     }
 }
 
@@ -194,7 +219,7 @@ struct LogFoodIntent: AppIntent {
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let result = try await PerplexityClient.lookupCarbs(for: foodItem)
 
-        CarbDataStore.addFood(name: result.name, carbs: result.carbs)
+        CarbDataStore.addFood(name: result.name, carbs: result.carbs, details: result.details, citations: result.citations)
 
         let formattedCarbs = String(format: "%.1f", result.carbs)
         let formattedTotal = String(format: "%.1f", CarbDataStore.totalCarbs())

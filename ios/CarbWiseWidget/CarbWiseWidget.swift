@@ -33,10 +33,8 @@ struct CarbWiseProvider: TimelineProvider {
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<CarbWiseEntry>) -> Void) {
         let entry = CarbWiseEntry(date: Date(), data: loadData())
-        let tomorrow = Calendar.current.startOfDay(
-            for: Calendar.current.date(byAdding: .day, value: 1, to: Date())!
-        )
-        let timeline = Timeline(entries: [entry], policy: .after(tomorrow))
+        let refreshDate = Calendar.current.date(byAdding: .minute, value: 15, to: Date())!
+        let timeline = Timeline(entries: [entry], policy: .after(refreshDate))
         completion(timeline)
     }
 
@@ -79,6 +77,17 @@ struct GoalRingView: View {
     }
 }
 
+struct GlassEffectModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOSApplicationExtension 26.0, *) {
+            content.glassEffect(.regular, in: .capsule)
+        } else {
+            content
+                .background(.ultraThinMaterial, in: Capsule())
+        }
+    }
+}
+
 struct CarbWiseWidgetEntryView: View {
     var entry: CarbWiseProvider.Entry
 
@@ -96,10 +105,10 @@ struct CarbWiseWidgetEntryView: View {
             Spacer()
 
             VStack(spacing: 8) {
-                if hasGoal {
+                if let goal = entry.data.dailyGoal {
                     ZStack {
                         GoalRingView(
-                            progress: entry.data.totalCarbs / entry.data.dailyGoal!,
+                            progress: entry.data.totalCarbs / goal,
                             isOver: isOver
                         )
                         .frame(width: 100, height: 100)
@@ -112,11 +121,11 @@ struct CarbWiseWidgetEntryView: View {
                     }
 
                     if isOver {
-                        Text(String(format: "+%.0fg over", entry.data.totalCarbs - entry.data.dailyGoal!))
+                        Text(String(format: "+%.0fg over", entry.data.totalCarbs - goal))
                             .font(.system(size: 14))
                             .foregroundStyle(terracotta)
                     } else {
-                        Text(String(format: "%.0fg left", entry.data.dailyGoal! - entry.data.totalCarbs))
+                        Text(String(format: "%.0fg left", goal - entry.data.totalCarbs))
                             .font(.system(size: 14))
                             .foregroundStyle(.secondary)
                     }
@@ -145,7 +154,7 @@ struct CarbWiseWidgetEntryView: View {
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 5)
-                    .glassEffect(.regular, in: .capsule)
+                    .modifier(GlassEffectModifier())
                 }
             }
 

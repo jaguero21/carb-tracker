@@ -275,9 +275,19 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
 
       setState(() {
         for (final item in siriItems) {
+          final citations = item['citations'] != null
+              ? List<String>.from(item['citations'])
+              : <String>[];
+          DateTime? loggedAt;
+          if (item['loggedAt'] != null) {
+            loggedAt = DateTime.tryParse(item['loggedAt'] as String);
+          }
           final foodItem = FoodItem(
             name: item['name'] as String,
             carbs: (item['carbs'] as num).toDouble(),
+            details: item['details'] as String?,
+            citations: citations,
+            loggedAt: loggedAt ?? DateTime.now(),
           );
           foodItems.insert(0, foodItem);
           _listKey.currentState?.insertItem(0, duration: const Duration(milliseconds: 400));
