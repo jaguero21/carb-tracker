@@ -27,7 +27,7 @@ struct CarbDataStore {
         return value > 0 ? value : nil
     }
 
-    static func addFood(name: String, carbs: Double) {
+    static func addFood(name: String, carbs: Double, details: String? = nil) {
         let newTotal = totalCarbs() + carbs
         defaults?.set(newTotal, forKey: "totalCarbs")
         defaults?.set(name, forKey: "lastFoodName")
@@ -43,7 +43,9 @@ struct CarbDataStore {
            let parsed = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
             siriItems = parsed
         }
-        siriItems.append(["name": name, "carbs": carbs])
+        var entry: [String: Any] = ["name": name, "carbs": carbs]
+        if let details = details { entry["details"] = details }
+        siriItems.append(entry)
         if let jsonData = try? JSONSerialization.data(withJSONObject: siriItems),
            let jsonString = String(data: jsonData, encoding: .utf8) {
             defaults?.set(jsonString, forKey: "siriLoggedItems")
@@ -76,7 +78,7 @@ struct EnvReader {
 // MARK: - Perplexity API client
 
 struct PerplexityClient {
-    static func lookupCarbs(for foodItem: String) async throws -> (name: String, carbs: Double) {
+    static func lookupCarbs(for foodItem: String) async throws -> (name: String, carbs: Double, details: String?) {
         guard let apiKey = EnvReader.apiKey(), !apiKey.isEmpty else {
             throw IntentError.message("API key not configured.")
         }
@@ -94,10 +96,11 @@ struct PerplexityClient {
                 [
                     "role": "system",
                     "content": "You are a precise nutrition assistant. The user will name a food item. "
-                        + "Respond with ONLY a JSON object with \"name\" (short descriptive name) and \"carbs\" (number of carb grams as a number). "
+                        + "Respond with ONLY a JSON object with \"name\" (short descriptive name), \"carbs\" (number of carb grams as a number), "
+                        + "and \"details\" (one sentence citing the source and serving size, e.g. 'Per USDA FoodData Central, 1 medium banana (118g)'). "
                         + "Use official nutrition data from the restaurant or manufacturer website when available. "
                         + "For generic foods, use USDA FoodData Central values. "
-                        + "Example: {\"name\":\"Banana\",\"carbs\":27} "
+                        + "Example: {\"name\":\"Banana\",\"carbs\":27,\"details\":\"Per USDA FoodData Central, 1 medium banana (118g).\"} "
                         + "Return ONLY the JSON object, no other text."
                 ],
                 [
@@ -105,7 +108,7 @@ struct PerplexityClient {
                     "content": foodItem
                 ]
             ],
-            "max_tokens": 150,
+            "max_tokens": 250,
             "temperature": 0.0
         ]
 
@@ -137,7 +140,7 @@ struct PerplexityClient {
         return try parseFood(from: content.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
-    private static func parseFood(from content: String) throws -> (name: String, carbs: Double) {
+    private static func parseFood(from content: String) throws -> (name: String, carbs: Double, details: String?) {
         // Extract JSON object from response (handle markdown code fences)
         var jsonStr = content
         if let match = jsonStr.range(of: #"\{[\s\S]*\}"#, options: .regularExpression) {
@@ -151,7 +154,8 @@ struct PerplexityClient {
             throw IntentError.message("Could not parse food data.")
         }
 
-        return (name: name, carbs: carbs.doubleValue)
+        let details = obj["details"] as? String
+        return (name: name, carbs: carbs.doubleValue, details: details)
     }
 }
 
@@ -182,7 +186,7 @@ struct LogFoodIntent: AppIntent {
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let result = try await PerplexityClient.lookupCarbs(for: foodItem)
 
-        CarbDataStore.addFood(name: result.name, carbs: result.carbs)
+        CarbDataStore.addFood(name: result.name, carbs: result.carbs, details: result.details)
 
         let formattedCarbs = String(format: "%.1f", result.carbs)
         let formattedTotal = String(format: "%.1f", CarbDataStore.totalCarbs())
