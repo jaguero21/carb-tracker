@@ -347,8 +347,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       final items = await _perplexityService.getMultipleCarbCounts(foodText);
 
       setState(() {
-        for (final item in items.reversed) {
-          foodItems.insert(0, item);
+        for (final item in items) {
           totalCarbs += item.carbs;
         }
         isLoading = false;
@@ -356,7 +355,10 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
         _foodController.clear();
       });
 
-      for (var i = 0; i < items.length; i++) {
+      // Insert one at a time so AnimatedList and foodItems stay in sync
+      // and every item gets its own entrance animation
+      for (final item in items.reversed) {
+        foodItems.insert(0, item);
         _listKey.currentState?.insertItem(0, duration: const Duration(milliseconds: 400));
       }
 
@@ -393,10 +395,14 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   }
 
   void _resetTotal() {
-    for (int i = foodItems.length - 1; i >= 0; i--) {
+    // Snapshot the list before clearing so the exit animation builders
+    // don't reference foodItems[i] after it has been cleared
+    final snapshot = List<FoodItem>.from(foodItems);
+    for (int i = snapshot.length - 1; i >= 0; i--) {
+      final item = snapshot[i];
       _listKey.currentState?.removeItem(
         i,
-        (context, animation) => _buildAnimatedItem(foodItems[i], animation),
+        (context, animation) => _buildAnimatedItem(item, animation),
         duration: const Duration(milliseconds: 300),
       );
     }
