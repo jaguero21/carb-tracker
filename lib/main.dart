@@ -278,6 +278,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
           final foodItem = FoodItem(
             name: item['name'] as String,
             carbs: (item['carbs'] as num).toDouble(),
+            details: item['details'] as String?,
           );
           foodItems.insert(0, foodItem);
           _listKey.currentState?.insertItem(0, duration: const Duration(milliseconds: 400));
