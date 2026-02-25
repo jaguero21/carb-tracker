@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// CarbWise Brand Color Palette
+/// CarpeCarb Brand Color Palette
 /// A warm, natural color scheme designed for mindful carb tracking
 class AppColors {
   AppColors._(); // Private constructor to prevent instantiation
@@ -34,6 +34,15 @@ class AppColors {
   // UI Colors
   static const Color border = Color(0x142A2520); // rgba(42, 37, 32, 0.08)
   static const Color borderMedium = Color(0x332A2520); // ~20% opacity
+
+  // Dark mode adaptive colors (used in darkTheme ThemeData only)
+  static const Color darkBackground = Color(0xFF1A1714);
+  static const Color darkSurface = Color(0xFF252019);
+  static const Color lightInk = Color(0xFFF5EFE8);
+  static const Color lightCharcoal = Color(0xFFDDD4CB);
+  static const Color darkMuted = Color(0xFF9A8D84);
+  static const Color darkBorder = Color(0x14F5EFE8);       // 8% opacity
+  static const Color darkBorderMedium = Color(0x33F5EFE8); // 20% opacity
 
   // Semantic Colors
   static const Color success = sage;

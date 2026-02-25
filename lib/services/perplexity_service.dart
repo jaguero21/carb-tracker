@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../utils/input_validation.dart';
+import '../models/food_item.dart';
 
 class PerplexityService {
   // Load API key from environment variables instead of hardcoding
@@ -97,6 +98,132 @@ class PerplexityService {
       }
       // Otherwise wrap in a generic error
       throw Exception('Failed to get carb count: ${e.toString()}');
+    }
+  }
+
+  /// Looks up multiple food items in a single API call.
+  /// Returns a list of FoodItems with individual carb counts.
+  /// Retries up to 2 times on transient failures (timeout, network, 5xx).
+  Future<List<FoodItem>> getMultipleCarbCounts(String input) async {
+    await _enforceRateLimit();
+
+    final sanitizedInput = InputValidation.sanitizeForApi(input);
+    const maxAttempts = 3;
+
+    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        final response = await http
+            .post(
+              Uri.parse(_apiUrl),
+              headers: {
+                'Authorization': 'Bearer $_apiKey',
+                'Content-Type': 'application/json',
+              },
+              body: jsonEncode({
+                'model': 'sonar',
+                'messages': [
+                  {
+                    'role': 'system',
+                    'content':
+                        'You are a precise nutrition assistant. The user will describe one or more food items. '
+                        'Identify each distinct food item and respond with ONLY a JSON array. '
+                        'Each element must have "name" (short descriptive name), "carbs" (number of carb grams), '
+                        'and "details" (cite the specific source used e.g. restaurant website, USDA database, nutrition label). '
+                        'IMPORTANT: Always use official nutrition data from the restaurant or manufacturer website when available. '
+                        'For branded/restaurant items (McDonald\'s, Chick-fil-A, etc.), use the exact values from their published nutrition information. '
+                        'For generic foods, use USDA FoodData Central values. '
+                        'Never estimate or average — use the most authoritative source available. '
+                        'Include the serving size in the details. '
+                        'Example: [{"name":"Big Mac","carbs":45,"details":"Per McDonald\'s official nutrition information, a Big Mac contains 45g of carbs (standard serving)."}] '
+                        'Return ONLY the JSON array, no other text.',
+                  },
+                  {
+                    'role': 'user',
+                    'content': sanitizedInput,
+                  },
+                ],
+                'max_tokens': 600,
+                'temperature': 0.0,
+              }),
+            )
+            .timeout(
+              const Duration(seconds: 30),
+              onTimeout: () {
+                throw Exception('Request timed out. Please check your internet connection and try again.');
+              },
+            );
+
+        if (response.statusCode == 200) {
+          try {
+            final data = jsonDecode(response.body);
+            if (data == null || data['choices'] == null || data['choices'].isEmpty) {
+              throw Exception('Invalid response format from API');
+            }
+
+            final content = (data['choices'][0]['message']['content'] as String).trim();
+            final citations = data['citations'] != null
+                ? List<String>.from(data['citations'])
+                : <String>[];
+            return _parseMultipleItems(content, citations);
+          } on FormatException {
+            throw Exception('Received malformed response from API');
+          }
+        } else if (response.statusCode == 401) {
+          throw Exception('Invalid API key. Please check your configuration.');
+        } else if (response.statusCode == 429) {
+          throw Exception('API rate limit exceeded. Please try again later.');
+        } else if (response.statusCode >= 500) {
+          if (attempt < maxAttempts) {
+            await Future.delayed(Duration(seconds: attempt));
+            continue;
+          }
+          throw Exception('Server error. Please try again later.');
+        } else {
+          throw Exception('API request failed (${response.statusCode}): ${response.reasonPhrase}');
+        }
+      } on http.ClientException {
+        if (attempt < maxAttempts) {
+          await Future.delayed(Duration(seconds: attempt));
+          continue;
+        }
+        throw Exception('No internet connection. Please check your network and try again.');
+      } catch (e) {
+        final msg = e.toString();
+        // Retry on timeout, rethrow everything else
+        if (msg.contains('timed out') && attempt < maxAttempts) {
+          await Future.delayed(Duration(seconds: attempt));
+          continue;
+        }
+        if (msg.contains('Exception:')) {
+          rethrow;
+        }
+        throw Exception('Failed to get carb count: $msg');
+      }
+    }
+
+    // Unreachable, but satisfies the analyzer
+    throw Exception('Failed after $maxAttempts attempts.');
+  }
+
+  /// Parses the JSON array response into a list of FoodItems.
+  List<FoodItem> _parseMultipleItems(String content, List<String> citations) {
+    // Extract JSON array from response (handle markdown code fences)
+    var jsonStr = content;
+    final arrayMatch = RegExp(r'\[[\s\S]*\]').firstMatch(jsonStr);
+    if (arrayMatch != null) {
+      jsonStr = arrayMatch.group(0)!;
+    }
+
+    try {
+      final List<dynamic> items = jsonDecode(jsonStr);
+      return items.map((item) {
+        final name = item['name'] as String;
+        final carbs = (item['carbs'] as num).toDouble();
+        final details = item['details'] as String?;
+        return FoodItem(name: name, carbs: carbs, details: details, citations: citations);
+      }).toList();
+    } catch (_) {
+      throw Exception('Could not parse food items from response');
     }
   }
 

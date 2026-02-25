@@ -1,5 +1,5 @@
 name: carb_tracker
-description: A minimalist carb tracking app using Perplexity API
+description: biteBot - A minimalist carb tracking app using Perplexity API
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -19,6 +19,10 @@ dependencies:
   # SVG rendering for custom icons
   flutter_svg: ^2.0.9
   flutter_dotenv: ^6.0.0
+
+  # Open URLs in browser
+  url_launcher: ^6.2.1
+  home_widget: ^0.9.0
 
 dev_dependencies:
   flutter_test:

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-/// CarbWise Custom Icon Pack
+/// CarpeCarb Custom Icon Pack
 /// Provides easy access to custom SVG icons with consistent sizing
 class AppIcons {
   AppIcons._(); // Private constructor to prevent instantiation

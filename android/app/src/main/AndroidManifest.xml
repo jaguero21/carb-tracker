@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="carb_tracker"
+        android:label="biteBot"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
