@@ -166,7 +166,8 @@ class CarbTrackerHome extends StatefulWidget {
 }
 
 // Made public for testing
-class CarbTrackerHomeState extends State<CarbTrackerHome> {
+class CarbTrackerHomeState extends State<CarbTrackerHome>
+    with WidgetsBindingObserver {
   final TextEditingController _foodController = TextEditingController();
   final FocusNode _foodFocusNode = FocusNode();
   final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
@@ -181,8 +182,17 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadSavedData();
     _checkWidgetLaunch();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      _importSiriLoggedItems();
+    }
   }
 
   Future<void> _checkWidgetLaunch() async {
@@ -930,6 +940,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _foodController.dispose();
     _foodFocusNode.dispose();
     super.dispose();
