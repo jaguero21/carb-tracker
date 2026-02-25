@@ -92,86 +92,66 @@ struct CarbWiseWidgetEntryView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Image(systemName: "leaf.fill")
-                    .font(.system(size: 10))
-                    .foregroundStyle(sage)
-                Text("CarpeCarb")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(sage)
-                Spacer()
-            }
-
+        VStack(alignment: .center, spacing: 0) {
             Spacer()
 
-            if hasGoal {
-                HStack {
-                    Spacer()
+            VStack(spacing: 8) {
+                if hasGoal {
                     ZStack {
                         GoalRingView(
                             progress: entry.data.totalCarbs / entry.data.dailyGoal!,
                             isOver: isOver
                         )
-                        .frame(width: 64, height: 64)
+                        .frame(width: 100, height: 100)
 
                         Text(String(format: "%.0fg", entry.data.totalCarbs))
-                            .font(.system(size: 18, weight: .light, design: .rounded))
+                            .font(.system(size: 28, weight: .light, design: .rounded))
                             .foregroundStyle(.primary)
                             .minimumScaleFactor(0.6)
                             .lineLimit(1)
                     }
-                    Spacer()
-                }
 
-                HStack {
-                    Spacer()
                     if isOver {
                         Text(String(format: "+%.0fg over", entry.data.totalCarbs - entry.data.dailyGoal!))
-                            .font(.system(size: 10))
+                            .font(.system(size: 14))
                             .foregroundStyle(terracotta)
                     } else {
                         Text(String(format: "%.0fg left", entry.data.dailyGoal! - entry.data.totalCarbs))
-                            .font(.system(size: 10))
+                            .font(.system(size: 14))
                             .foregroundStyle(.secondary)
                     }
-                    Spacer()
-                }
-            } else {
-                Text(String(format: "%.1fg", entry.data.totalCarbs))
-                    .font(.system(size: 32, weight: .light, design: .rounded))
-                    .foregroundStyle(.primary)
-                    .minimumScaleFactor(0.7)
-                    .lineLimit(1)
+                } else {
+                    Text(String(format: "%.1fg", entry.data.totalCarbs))
+                        .font(.system(size: 52, weight: .light, design: .rounded))
+                        .foregroundStyle(.primary)
+                        .minimumScaleFactor(0.7)
+                        .lineLimit(1)
 
-                Text("total carbs")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
+                    Text("total carbs")
+                        .font(.system(size: 15))
+                        .foregroundStyle(.secondary)
+                }
+
+                if !entry.data.lastFoodName.isEmpty {
+                    HStack {
+                        Text(entry.data.lastFoodName)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                        Spacer()
+                        Text(String(format: "%.1fg", entry.data.lastFoodCarbs))
+                            .font(.system(size: 13, weight: .light))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .glassEffect(.regular, in: .capsule)
+                }
             }
 
             Spacer()
-
-            if !entry.data.lastFoodName.isEmpty {
-                HStack {
-                    Text(entry.data.lastFoodName)
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                    Spacer()
-                    Text(String(format: "%.1fg", entry.data.lastFoodCarbs))
-                        .font(.system(size: 11, weight: .light))
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .glassEffect(.regular, in: .capsule)
-            } else {
-                Text("Tap to add food")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-            }
         }
-        .padding(14)
+        .padding(12)
         .widgetURL(URL(string: "carpecarb://open"))
     }
 }

@@ -220,17 +220,47 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
 
   Future<void> _loadSavedData() async {
     final prefs = await SharedPreferences.getInstance();
-    final savedTotal = prefs.getDouble('total_carbs') ?? 0.0;
     final savedGoal = prefs.getDouble('daily_carb_goal');
+    final lastSaveDate = prefs.getString('last_save_date');
+    final isNewDay = lastSaveDate != null && lastSaveDate != _todayString();
 
-    // Also check the shared UserDefaults total (Siri may have updated it)
+    if (isNewDay) {
+      // New day — reset everything
+      await prefs.remove('food_items');
+      await prefs.remove('last_save_date');
+      await prefs.setDouble('total_carbs', 0.0);
+      await HomeWidget.saveWidgetData<double>('totalCarbs', 0.0);
+      await HomeWidget.saveWidgetData<String>('lastFoodName', '');
+      await HomeWidget.saveWidgetData<double>('lastFoodCarbs', 0.0);
+      await HomeWidget.updateWidget(iOSName: 'CarbWiseWidget');
+      setState(() {
+        totalCarbs = 0.0;
+        foodItems = [];
+        dailyCarbGoal = savedGoal;
+      });
+      return;
+    }
+
+    // Same day — restore food list and total
+    final savedTotal = prefs.getDouble('total_carbs') ?? 0.0;
     final widgetTotal = await HomeWidget.getWidgetData<double>('totalCarbs') ?? 0.0;
     final effectiveTotal = widgetTotal > savedTotal ? widgetTotal : savedTotal;
 
+    final itemsJson = prefs.getString('food_items');
+    List<FoodItem> loadedItems = [];
+    if (itemsJson != null) {
+      try {
+        final List<dynamic> decoded = jsonDecode(itemsJson);
+        loadedItems = decoded.map((item) => FoodItem.fromJson(item as Map<String, dynamic>)).toList();
+      } catch (_) {}
+    }
+
     setState(() {
       totalCarbs = effectiveTotal;
+      foodItems = loadedItems;
       dailyCarbGoal = savedGoal;
     });
+
     // Pick up any food items logged via Siri while the app was closed
     await _importSiriLoggedItems();
   }
@@ -271,6 +301,14 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     } else {
       await prefs.remove('daily_carb_goal');
     }
+    final itemsJson = jsonEncode(foodItems.map((f) => f.toJson()).toList());
+    await prefs.setString('food_items', itemsJson);
+    await prefs.setString('last_save_date', _todayString());
+  }
+
+  String _todayString() {
+    final now = DateTime.now();
+    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
   }
 
   String? _validateFoodInput(String input) {
@@ -672,7 +710,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
         title: const Text(
           'CarpeCarb',
           style: TextStyle(
-            fontSize: 20,
+            fontSize: 25,
             fontWeight: FontWeight.w500,
             letterSpacing: 0.3,
           ),
@@ -732,7 +770,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                             ? 'Total Carbs'
                             : foodItems.first.name,
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: 20,
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                           letterSpacing: 1.2,
                         ),
@@ -782,7 +820,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                               ? 'over by ${(totalCarbs - dailyCarbGoal!).toStringAsFixed(1)}g'
                               : '${(dailyCarbGoal! - totalCarbs).toStringAsFixed(1)}g remaining',
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 20,
                             color: totalCarbs > dailyCarbGoal!
                                 ? AppColors.terracotta
                                 : Theme.of(context).colorScheme.onSurfaceVariant,
