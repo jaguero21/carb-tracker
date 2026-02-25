@@ -1,6 +1,5 @@
 import AppIntents
 import Foundation
-import WidgetKit
 
 // MARK: - Shared UserDefaults reader/writer
 
@@ -49,8 +48,6 @@ struct CarbDataStore {
            let jsonString = String(data: jsonData, encoding: .utf8) {
             defaults?.set(jsonString, forKey: "siriLoggedItems")
         }
-
-        WidgetCenter.shared.reloadAllTimelines()
     }
 }
 
@@ -58,16 +55,7 @@ struct CarbDataStore {
 
 struct EnvReader {
     static func apiKey() -> String? {
-        guard let path = Bundle.main.path(forResource: ".env", ofType: nil) ??
-                         Bundle.main.path(forResource: "env", ofType: nil) else {
-            // Try flutter assets path
-            if let assetsPath = Bundle.main.path(forResource: "flutter_assets/.env", ofType: nil) {
-                return parseKey(from: assetsPath)
-            }
-            // Check in Frameworks/App.framework for release builds
-            if let frameworkPath = Bundle.main.path(forResource: "Frameworks/App.framework/flutter_assets/.env", ofType: nil) {
-                return parseKey(from: frameworkPath)
-            }
+        guard let path = Bundle.main.path(forResource: ".env", ofType: nil) else {
             return nil
         }
         return parseKey(from: path)
@@ -242,18 +230,5 @@ struct CheckCarbsIntent: AppIntent {
         }
 
         return .result(dialog: IntentDialog(stringLiteral: message))
-    }
-}
-
-// MARK: - Open App Intent
-
-struct OpenCarpeCarbIntent: AppIntent {
-    static var title: LocalizedStringResource = "Open CarpeCarb"
-    static var description = IntentDescription("Open the CarpeCarb app.")
-
-    static var openAppWhenRun: Bool = true
-
-    func perform() async throws -> some IntentResult {
-        return .result()
     }
 }
