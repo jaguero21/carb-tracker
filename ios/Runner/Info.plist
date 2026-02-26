@@ -37,6 +37,10 @@
 	</array>
 	<key>NSSiriUsageDescription</key>
 	<string>CarpeCarb uses Siri to let you log food and check your daily carb intake hands-free.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>CarpeCarb reads your carb intake history from Apple Health to show trends and daily totals.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>CarpeCarb saves your carb intake to Apple Health so you can track nutrition across apps.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
