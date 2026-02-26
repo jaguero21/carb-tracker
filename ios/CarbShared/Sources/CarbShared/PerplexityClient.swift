@@ -1,7 +1,22 @@
 import Foundation
 
 public struct PerplexityClient {
+    private static var lastRequestTime: Date?
+    private static let minInterval: TimeInterval = 1.5
+
+    private static func enforceRateLimit() async {
+        if let last = lastRequestTime {
+            let elapsed = Date().timeIntervalSince(last)
+            if elapsed < minInterval {
+                try? await Task.sleep(nanoseconds: UInt64((minInterval - elapsed) * 1_000_000_000))
+            }
+        }
+        lastRequestTime = Date()
+    }
+
     public static func lookupCarbs(for foodItem: String) async throws -> (name: String, carbs: Double, details: String?, citations: [String]) {
+        await enforceRateLimit()
+
         guard let apiKey = EnvReader.apiKey(), !apiKey.isEmpty else {
             throw IntentError.message("API key not configured.")
         }
