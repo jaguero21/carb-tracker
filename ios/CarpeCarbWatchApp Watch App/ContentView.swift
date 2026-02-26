@@ -77,8 +77,7 @@ struct ContentView: View {
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 6)
-                    .background(Color.secondary.opacity(0.1))
-                    .clipShape(Capsule())
+                    .modifier(WatchGlassCapsuleModifier())
                 }
 
                 VStack(spacing: 2) {
@@ -90,6 +89,9 @@ struct ContentView: View {
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .modifier(WatchGlassRoundedModifier())
                 .padding(.top, 6)
             }
             .padding(.horizontal, 8)
@@ -108,5 +110,31 @@ struct ContentView: View {
         lastFoodCarbs = defaults?.double(forKey: CarbDataStore.Keys.lastFoodCarbs) ?? 0.0
         let goalValue = defaults?.double(forKey: CarbDataStore.Keys.dailyCarbGoal) ?? 0.0
         dailyCarbGoal = goalValue > 0 ? goalValue : nil
+    }
+}
+
+// MARK: - Glass Modifiers
+
+struct WatchGlassCapsuleModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(watchOS 26.0, *) {
+            content.glassEffect(.regular, in: .capsule)
+        } else {
+            content
+                .background(Color.secondary.opacity(0.1))
+                .clipShape(Capsule())
+        }
+    }
+}
+
+struct WatchGlassRoundedModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(watchOS 26.0, *) {
+            content.glassEffect(.regular, in: RoundedRectangle(cornerRadius: 10))
+        } else {
+            content
+                .background(Color.secondary.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
     }
 }

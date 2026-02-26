@@ -8,6 +8,7 @@ import 'package:home_widget/home_widget.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:ui';
 import 'services/perplexity_service.dart';
 import 'services/health_kit_service.dart';
 import 'models/food_item.dart';
@@ -17,6 +18,7 @@ import 'config/app_colors.dart';
 import 'config/app_icons.dart';
 import 'config/storage_keys.dart';
 import 'utils/input_validation.dart';
+import 'widgets/glass_container.dart';
 
 Future<void> main() async {
   // Ensure Flutter is initialized
@@ -86,6 +88,10 @@ ThemeData _lightTheme() {
         borderRadius: BorderRadius.circular(8),
       ),
     ),
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ),
   );
 }
 
@@ -143,6 +149,10 @@ ThemeData _darkTheme() {
         borderSide: const BorderSide(color: AppColors.sage, width: 2),
         borderRadius: BorderRadius.circular(8),
       ),
+    ),
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     ),
   );
 }
@@ -354,7 +364,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(validationError),
-            backgroundColor: AppColors.honey,
+            backgroundColor: AppColors.honey.withValues(alpha: 0.9),
             duration: const Duration(seconds: 3),
           ),
         );
@@ -412,7 +422,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(errorMessage),
-            backgroundColor: AppColors.terracotta,
+            backgroundColor: AppColors.terracotta.withValues(alpha: 0.9),
             duration: const Duration(seconds: 4),
             action: SnackBarAction(
               label: 'Dismiss',
@@ -504,7 +514,9 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   void _showFoodDetails(FoodItem item) {
     showDialog(
       context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.3),
       builder: (context) => AlertDialog(
+        backgroundColor: Theme.of(context).colorScheme.surface.withValues(alpha: 0.92),
         title: Text(item.name),
         content: SingleChildScrollView(
           child: RichText(
@@ -585,8 +597,10 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
 
     showDialog(
       context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.3),
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: Theme.of(context).colorScheme.surface.withValues(alpha: 0.92),
           title: const Text('Daily Carb Goal'),
           content: TextField(
             controller: controller,
@@ -765,7 +779,19 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        flexibleSpace: ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+            child: Container(
+              color: Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.7),
+            ),
+          ),
+        ),
         title: const Text(
           'CarpeCarb',
           style: TextStyle(
@@ -905,72 +931,84 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                 ),
               ),
 
-              // Input Field
-              TextField(
-                controller: _foodController,
-                focusNode: _foodFocusNode,
-                decoration: InputDecoration(
-                  hintText: 'Enter food item...',
-                  hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 16,
-                  ),
-                ),
-                onSubmitted: (_) => _addFood(),
-              ),
-
-              const SizedBox(height: 16),
-
-              // Add Button
-              ElevatedButton(
-                onPressed: isLoading ? null : _addFood,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-                child: isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text(
-                        'Add Food',
-                        style: TextStyle(
-                          fontSize: 16,
-                          letterSpacing: 1.2,
-                          fontWeight: FontWeight.w500,
+              // Input Section — glass container
+              GlassContainer(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: _foodController,
+                      focusNode: _foodFocusNode,
+                      decoration: InputDecoration(
+                        hintText: 'Enter food item...',
+                        hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 16,
                         ),
                       ),
+                      onSubmitted: (_) => _addFood(),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: isLoading ? null : _addFood,
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        child: isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                'Add Food',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  letterSpacing: 1.2,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
 
               const SizedBox(height: 32),
 
               // Food List Header
               if (foodItems.isNotEmpty)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'TODAY',
-                      style: TextStyle(
-                        fontSize: 12,
-                        letterSpacing: 1.5,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w600,
+                GlassContainer(
+                  borderRadius: const BorderRadius.all(Radius.circular(12)),
+                  blur: 8,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'TODAY',
+                        style: TextStyle(
+                          fontSize: 12,
+                          letterSpacing: 1.5,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                    TextButton(
-                      onPressed: _resetTotal,
-                      child: const Text(
-                        'Reset',
-                        style: TextStyle(color: AppColors.terracotta),
+                      TextButton(
+                        onPressed: _resetTotal,
+                        child: const Text(
+                          'Reset',
+                          style: TextStyle(color: AppColors.terracotta),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
 
               // Food List

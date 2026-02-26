@@ -44,6 +44,12 @@ class AppColors {
   static const Color darkBorder = Color(0x14F5EFE8);       // 8% opacity
   static const Color darkBorderMedium = Color(0x33F5EFE8); // 20% opacity
 
+  // Glass effect colors (Liquid Glass-inspired)
+  static const Color glassLight = Color(0x99FFFFFF);       // white 60%
+  static const Color glassDark = Color(0x66252019);        // dark surface 40%
+  static const Color glassBorderLight = Color(0x33FFFFFF); // white 20%
+  static const Color glassBorderDark = Color(0x14F5EFE8);  // light 8%
+
   // Semantic Colors
   static const Color success = sage;
   static const Color warning = honey;
