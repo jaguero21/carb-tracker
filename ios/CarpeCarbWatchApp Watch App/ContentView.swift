@@ -102,11 +102,11 @@ struct ContentView: View {
     }
 
     private func loadData() {
-        let defaults = UserDefaults(suiteName: "group.com.jamesaguero.mycarbtracker")
-        totalCarbs = defaults?.double(forKey: "totalCarbs") ?? 0.0
-        lastFoodName = defaults?.string(forKey: "lastFoodName") ?? ""
-        lastFoodCarbs = defaults?.double(forKey: "lastFoodCarbs") ?? 0.0
-        let goalValue = defaults?.double(forKey: "dailyCarbGoal") ?? 0.0
+        let defaults = UserDefaults(suiteName: CarbDataStore.appGroupID)
+        totalCarbs = defaults?.double(forKey: CarbDataStore.Keys.totalCarbs) ?? 0.0
+        lastFoodName = defaults?.string(forKey: CarbDataStore.Keys.lastFoodName) ?? ""
+        lastFoodCarbs = defaults?.double(forKey: CarbDataStore.Keys.lastFoodCarbs) ?? 0.0
+        let goalValue = defaults?.double(forKey: CarbDataStore.Keys.dailyCarbGoal) ?? 0.0
         dailyCarbGoal = goalValue > 0 ? goalValue : nil
     }
 }

@@ -15,6 +15,7 @@ import 'screens/saved_food_list_page.dart';
 import 'screens/carb_history_page.dart';
 import 'config/app_colors.dart';
 import 'config/app_icons.dart';
+import 'config/storage_keys.dart';
 import 'utils/input_validation.dart';
 
 Future<void> main() async {
@@ -25,7 +26,7 @@ Future<void> main() async {
   await dotenv.load(fileName: ".env");
 
   // Initialize HomeWidget for iOS widget data sharing
-  HomeWidget.setAppGroupId('group.com.jamesaguero.mycarbtracker');
+  HomeWidget.setAppGroupId(StorageKeys.appGroupId);
 
   runApp(const CarbTrackerApp());
 }
@@ -210,34 +211,34 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   }
 
   Future<void> _updateWidget() async {
-    await HomeWidget.saveWidgetData<double>('totalCarbs', totalCarbs);
+    await HomeWidget.saveWidgetData<double>(StorageKeys.widgetTotalCarbs, totalCarbs);
     await HomeWidget.saveWidgetData<String>(
-      'lastFoodName',
+      StorageKeys.widgetLastFoodName,
       foodItems.isNotEmpty ? foodItems.first.name : '',
     );
     await HomeWidget.saveWidgetData<double>(
-      'lastFoodCarbs',
+      StorageKeys.widgetLastFoodCarbs,
       foodItems.isNotEmpty ? foodItems.first.carbs : 0.0,
     );
-    await HomeWidget.saveWidgetData<double>('dailyCarbGoal', dailyCarbGoal ?? 0.0);
-    await HomeWidget.updateWidget(iOSName: 'CarbWiseWidget');
+    await HomeWidget.saveWidgetData<double>(StorageKeys.widgetDailyCarbGoal, dailyCarbGoal ?? 0.0);
+    await HomeWidget.updateWidget(iOSName: StorageKeys.widgetName);
   }
 
   Future<void> _loadSavedData() async {
     final prefs = await SharedPreferences.getInstance();
-    final savedGoal = prefs.getDouble('daily_carb_goal');
-    final lastSaveDate = prefs.getString('last_save_date');
+    final savedGoal = prefs.getDouble(StorageKeys.dailyCarbGoal);
+    final lastSaveDate = prefs.getString(StorageKeys.lastSaveDate);
     final isNewDay = lastSaveDate != null && lastSaveDate != _todayString();
 
     if (isNewDay) {
       // New day — reset everything
-      await prefs.remove('food_items');
-      await prefs.remove('last_save_date');
-      await prefs.setDouble('total_carbs', 0.0);
-      await HomeWidget.saveWidgetData<double>('totalCarbs', 0.0);
-      await HomeWidget.saveWidgetData<String>('lastFoodName', '');
-      await HomeWidget.saveWidgetData<double>('lastFoodCarbs', 0.0);
-      await HomeWidget.updateWidget(iOSName: 'CarbWiseWidget');
+      await prefs.remove(StorageKeys.foodItems);
+      await prefs.remove(StorageKeys.lastSaveDate);
+      await prefs.setDouble(StorageKeys.totalCarbs, 0.0);
+      await HomeWidget.saveWidgetData<double>(StorageKeys.widgetTotalCarbs, 0.0);
+      await HomeWidget.saveWidgetData<String>(StorageKeys.widgetLastFoodName, '');
+      await HomeWidget.saveWidgetData<double>(StorageKeys.widgetLastFoodCarbs, 0.0);
+      await HomeWidget.updateWidget(iOSName: StorageKeys.widgetName);
       setState(() {
         totalCarbs = 0.0;
         foodItems = [];
@@ -247,11 +248,11 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     }
 
     // Same day — restore food list and total
-    final savedTotal = prefs.getDouble('total_carbs') ?? 0.0;
-    final widgetTotal = await HomeWidget.getWidgetData<double>('totalCarbs') ?? 0.0;
+    final savedTotal = prefs.getDouble(StorageKeys.totalCarbs) ?? 0.0;
+    final widgetTotal = await HomeWidget.getWidgetData<double>(StorageKeys.widgetTotalCarbs) ?? 0.0;
     final effectiveTotal = widgetTotal > savedTotal ? widgetTotal : savedTotal;
 
-    final itemsJson = prefs.getString('food_items');
+    final itemsJson = prefs.getString(StorageKeys.foodItems);
     List<FoodItem> loadedItems = [];
     if (itemsJson != null) {
       try {
@@ -273,7 +274,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   }
 
   Future<void> _importSiriLoggedItems() async {
-    final siriItemsJson = await HomeWidget.getWidgetData<String>('siriLoggedItems');
+    final siriItemsJson = await HomeWidget.getWidgetData<String>(StorageKeys.widgetSiriLoggedItems);
     if (siriItemsJson == null) return;
 
     try {
@@ -307,7 +308,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       }
 
       // Clear the Siri buffer so we don't re-import on next launch
-      await HomeWidget.saveWidgetData<String?>('siriLoggedItems', null);
+      await HomeWidget.saveWidgetData<String?>(StorageKeys.widgetSiriLoggedItems, null);
       await _saveData();
 
       // Sync Siri-logged items to HealthKit
@@ -321,15 +322,15 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
 
   Future<void> _saveData() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble('total_carbs', totalCarbs);
+    await prefs.setDouble(StorageKeys.totalCarbs, totalCarbs);
     if (dailyCarbGoal != null) {
-      await prefs.setDouble('daily_carb_goal', dailyCarbGoal!);
+      await prefs.setDouble(StorageKeys.dailyCarbGoal, dailyCarbGoal!);
     } else {
-      await prefs.remove('daily_carb_goal');
+      await prefs.remove(StorageKeys.dailyCarbGoal);
     }
     final itemsJson = jsonEncode(foodItems.map((f) => f.toJson()).toList());
-    await prefs.setString('food_items', itemsJson);
-    await prefs.setString('last_save_date', _todayString());
+    await prefs.setString(StorageKeys.foodItems, itemsJson);
+    await prefs.setString(StorageKeys.lastSaveDate, _todayString());
   }
 
   String _todayString() {
@@ -724,7 +725,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
 
   Future<void> _saveToSavedFoods(FoodItem item) async {
     final prefs = await SharedPreferences.getInstance();
-    final savedJson = prefs.getString('saved_foods');
+    final savedJson = prefs.getString(StorageKeys.savedFoods);
 
     List<FoodItem> savedFoods = [];
     if (savedJson != null) {
@@ -739,7 +740,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     if (!exists) {
       savedFoods.add(item);
       final encoded = jsonEncode(savedFoods.map((f) => f.toJson()).toList());
-      await prefs.setString('saved_foods', encoded);
+      await prefs.setString(StorageKeys.savedFoods, encoded);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
