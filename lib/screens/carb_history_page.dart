@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/health_kit_service.dart';
 import '../config/app_colors.dart';
+import '../widgets/glass_container.dart';
 
 class CarbHistoryPage extends StatefulWidget {
   final HealthKitService healthKitService;
@@ -70,18 +71,16 @@ class _CarbHistoryPageState extends State<CarbHistoryPage> {
       ..sort((a, b) => b.compareTo(a));
 
     return Scaffold(
-      backgroundColor: AppColors.cream,
       appBar: AppBar(
-        backgroundColor: AppColors.cream,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.ink),
+          icon: Icon(Icons.arrow_back, color: Theme.of(context).colorScheme.onSurface),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'History',
           style: TextStyle(
-            color: AppColors.ink,
+            color: Theme.of(context).colorScheme.onSurface,
             fontSize: 20,
             fontWeight: FontWeight.w500,
           ),
@@ -191,35 +190,40 @@ class _CarbHistoryPageState extends State<CarbHistoryPage> {
                 top: index == 0 ? 16 : 24,
                 bottom: 8,
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    _formatDate(date).toUpperCase(),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      letterSpacing: 1.5,
-                      color: AppColors.muted,
-                      fontWeight: FontWeight.w600,
+              child: GlassContainer(
+                borderRadius: const BorderRadius.all(Radius.circular(12)),
+                blur: 8,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      _formatDate(date).toUpperCase(),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        letterSpacing: 1.5,
+                        color: AppColors.muted,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                  Text(
-                    '${dayTotal.toStringAsFixed(1)}g',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: AppColors.sage,
-                      fontWeight: FontWeight.w600,
+                    Text(
+                      '${dayTotal.toStringAsFixed(1)}g',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppColors.sage,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             ...entries.map((entry) => Container(
                   padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     border: Border(
                       bottom: BorderSide(
-                        color: Color(0xFFE8E4DF),
+                        color: Theme.of(context).colorScheme.outlineVariant,
                         width: 1,
                       ),
                     ),

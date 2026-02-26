@@ -46,7 +46,9 @@ class _SavedFoodListPageState extends State<SavedFoodListPage> {
   Future<void> _resetSavedFoods() async {
     final confirmed = await showDialog<bool>(
       context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.3),
       builder: (context) => AlertDialog(
+        backgroundColor: Theme.of(context).colorScheme.surface.withValues(alpha: 0.92),
         title: const Text('Reset Saved Foods'),
         content: const Text('Are you sure you want to clear all saved foods?'),
         actions: [

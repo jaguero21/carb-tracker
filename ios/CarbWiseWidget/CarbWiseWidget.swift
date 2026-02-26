@@ -55,12 +55,16 @@ struct CarbWiseEntry: TimelineEntry {
     let data: CarbWidgetData
 }
 
+// MARK: - Shared Colors
+
+private let sage = Color(red: 125/255, green: 155/255, blue: 118/255)
+private let terracotta = Color(red: 212/255, green: 113/255, blue: 78/255)
+
+// MARK: - Goal Ring
+
 struct GoalRingView: View {
     let progress: Double
     let isOver: Bool
-
-    private let sage = Color(red: 125/255, green: 155/255, blue: 118/255)
-    private let terracotta = Color(red: 212/255, green: 113/255, blue: 78/255)
 
     var body: some View {
         ZStack {
@@ -77,7 +81,9 @@ struct GoalRingView: View {
     }
 }
 
-struct GlassEffectModifier: ViewModifier {
+// MARK: - Glass Modifiers
+
+struct GlassCapsuleModifier: ViewModifier {
     func body(content: Content) -> some View {
         if #available(iOSApplicationExtension 26.0, *) {
             content.glassEffect(.regular, in: .capsule)
@@ -88,13 +94,24 @@ struct GlassEffectModifier: ViewModifier {
     }
 }
 
-struct CarbWiseWidgetEntryView: View {
+struct GlassRoundedModifier: ViewModifier {
+    var cornerRadius: CGFloat = 12
+
+    func body(content: Content) -> some View {
+        if #available(iOSApplicationExtension 26.0, *) {
+            content.glassEffect(.regular, in: RoundedRectangle(cornerRadius: cornerRadius))
+        } else {
+            content
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: cornerRadius))
+        }
+    }
+}
+
+// MARK: - Small Widget View
+
+struct CarbWiseSmallView: View {
     var entry: CarbWiseProvider.Entry
 
-    private let sage = Color(red: 125/255, green: 155/255, blue: 118/255)
-    private let terracotta = Color(red: 212/255, green: 113/255, blue: 78/255)
-
-    private var hasGoal: Bool { entry.data.dailyGoal != nil }
     private var isOver: Bool {
         guard let goal = entry.data.dailyGoal else { return false }
         return entry.data.totalCarbs > goal
@@ -154,16 +171,126 @@ struct CarbWiseWidgetEntryView: View {
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 5)
-                    .modifier(GlassEffectModifier())
+                    .modifier(GlassCapsuleModifier())
                 }
             }
 
             Spacer()
         }
         .padding(12)
-        .widgetURL(URL(string: "carpecarb://open"))
     }
 }
+
+// MARK: - Medium Widget View
+
+struct CarbWiseMediumView: View {
+    var entry: CarbWiseProvider.Entry
+
+    private var isOver: Bool {
+        guard let goal = entry.data.dailyGoal else { return false }
+        return entry.data.totalCarbs > goal
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            // Left: Goal ring or large number
+            VStack(spacing: 4) {
+                if let goal = entry.data.dailyGoal {
+                    ZStack {
+                        GoalRingView(
+                            progress: entry.data.totalCarbs / goal,
+                            isOver: isOver
+                        )
+                        .frame(width: 90, height: 90)
+
+                        Text(String(format: "%.0fg", entry.data.totalCarbs))
+                            .font(.system(size: 24, weight: .light, design: .rounded))
+                            .foregroundStyle(.primary)
+                            .minimumScaleFactor(0.6)
+                            .lineLimit(1)
+                    }
+
+                    if isOver {
+                        Text(String(format: "+%.0fg over", entry.data.totalCarbs - goal))
+                            .font(.system(size: 12))
+                            .foregroundStyle(terracotta)
+                    } else {
+                        Text(String(format: "%.0fg left", goal - entry.data.totalCarbs))
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                    }
+                } else {
+                    Text(String(format: "%.1fg", entry.data.totalCarbs))
+                        .font(.system(size: 42, weight: .light, design: .rounded))
+                        .foregroundStyle(.primary)
+                        .minimumScaleFactor(0.6)
+                        .lineLimit(1)
+
+                    Text("total carbs")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity)
+
+            // Right: Last food + app name
+            VStack(alignment: .leading, spacing: 8) {
+                Text("CarpeCarb")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                if !entry.data.lastFoodName.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Last logged")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .textCase(.uppercase)
+
+                        Text(entry.data.lastFoodName)
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(.primary)
+                            .lineLimit(2)
+
+                        Text(String(format: "%.1fg carbs", entry.data.lastFoodCarbs))
+                            .font(.system(size: 13, weight: .light))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .modifier(GlassRoundedModifier())
+                } else {
+                    Text("No foods logged yet")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .padding(12)
+    }
+}
+
+// MARK: - Entry View Router
+
+struct CarbWiseWidgetEntryView: View {
+    @Environment(\.widgetFamily) var widgetFamily
+    var entry: CarbWiseProvider.Entry
+
+    var body: some View {
+        switch widgetFamily {
+        case .systemMedium:
+            CarbWiseMediumView(entry: entry)
+        default:
+            CarbWiseSmallView(entry: entry)
+        }
+    }
+}
+
+// MARK: - Widget Configuration
 
 struct CarbWiseWidget: Widget {
     let kind: String = "CarbWiseWidget"
@@ -175,7 +302,7 @@ struct CarbWiseWidget: Widget {
         }
         .configurationDisplayName("CarpeCarb")
         .description("Track your daily carb intake at a glance.")
-        .supportedFamilies([.systemSmall])
+        .supportedFamilies([.systemSmall, .systemMedium])
     }
 }
 
