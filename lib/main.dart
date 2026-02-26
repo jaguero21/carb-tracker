@@ -6,10 +6,13 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:home_widget/home_widget.dart';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math' as math;
 import 'services/perplexity_service.dart';
+import 'services/health_kit_service.dart';
 import 'models/food_item.dart';
 import 'screens/saved_food_list_page.dart';
+import 'screens/carb_history_page.dart';
 import 'config/app_colors.dart';
 import 'config/app_icons.dart';
 import 'utils/input_validation.dart';
@@ -172,6 +175,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   final FocusNode _foodFocusNode = FocusNode();
   final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
   final PerplexityService _perplexityService = PerplexityService();
+  final HealthKitService _healthKitService = HealthKitService();
 
   List<FoodItem> foodItems = [];
   double totalCarbs = 0.0;
@@ -185,6 +189,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     WidgetsBinding.instance.addObserver(this);
     _loadSavedData();
     _checkWidgetLaunch();
+    if (Platform.isIOS) _healthKitService.requestAuthorization();
   }
 
   @override
@@ -302,6 +307,11 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       // Clear the Siri buffer so we don't re-import on next launch
       await HomeWidget.saveWidgetData<String?>('siriLoggedItems', null);
       await _saveData();
+
+      // Sync Siri-logged items to HealthKit
+      for (final foodItem in newItems) {
+        _healthKitService.writeFoodItem(foodItem);
+      }
     } catch (_) {
       // Ignore malformed Siri data
     }
@@ -379,6 +389,11 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
 
       await _saveData();
       await _updateWidget();
+
+      // Write each item to HealthKit (fire-and-forget)
+      for (final item in items) {
+        _healthKitService.writeFoodItem(item);
+      }
     } catch (e) {
       setState(() {
         isLoading = false;
@@ -422,6 +437,10 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
         duration: const Duration(milliseconds: 300),
       );
     }
+    // Delete all reset items from HealthKit
+    for (final item in snapshot) {
+      _healthKitService.deleteFoodItem(item);
+    }
     _saveData();
     _updateWidget();
   }
@@ -439,6 +458,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     );
     _saveData();
     _updateWidget();
+    _healthKitService.deleteFoodItem(removedItem);
 
     if (mounted) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -460,6 +480,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
               );
               _saveData();
               _updateWidget();
+              _healthKitService.writeFoodItem(removedItem);
             },
           ),
         ),
@@ -681,6 +702,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     _listKey.currentState?.insertItem(0, duration: const Duration(milliseconds: 400));
     _saveData();
     _updateWidget();
+    _healthKitService.writeFoodItem(item);
   }
 
   Future<void> _saveToSavedFoods(FoodItem item) async {
@@ -735,6 +757,21 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
           ),
         ),
         actions: [
+          if (Platform.isIOS)
+            IconButton(
+              icon: AppIcons.historyIcon(size: 24),
+              tooltip: 'Carb History',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CarbHistoryPage(
+                      healthKitService: _healthKitService,
+                    ),
+                  ),
+                );
+              },
+            ),
           IconButton(
             icon: AppIcons.bookmarkIcon(size: 24),
             tooltip: 'Saved Foods',
