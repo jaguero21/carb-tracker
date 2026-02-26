@@ -257,7 +257,9 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       try {
         final List<dynamic> decoded = jsonDecode(itemsJson);
         loadedItems = decoded.map((item) => FoodItem.fromJson(item as Map<String, dynamic>)).toList();
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('Failed to decode saved food_items: $e');
+      }
     }
 
     setState(() {
@@ -312,8 +314,8 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       for (final foodItem in newItems) {
         _healthKitService.writeFoodItem(foodItem);
       }
-    } catch (_) {
-      // Ignore malformed Siri data
+    } catch (e) {
+      debugPrint('Failed to import Siri logged items: $e');
     }
   }
 
