@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 class FoodItem {
   final String name;
   final double carbs;
@@ -23,6 +25,18 @@ class FoodItem {
     };
   }
 
+  static DateTime? _parseLoggedAt(dynamic value, String name) {
+    if (value == null) {
+      debugPrint('FoodItem: missing loggedAt for "$name", defaulting to now');
+      return null;
+    }
+    final parsed = DateTime.tryParse(value as String);
+    if (parsed == null) {
+      debugPrint('FoodItem: malformed loggedAt "$value" for "$name", defaulting to now');
+    }
+    return parsed;
+  }
+
   factory FoodItem.fromJson(Map<String, dynamic> json) {
     return FoodItem(
       name: json['name'] as String,
@@ -31,9 +45,7 @@ class FoodItem {
       citations: json['citations'] != null
           ? List<String>.from(json['citations'])
           : const [],
-      loggedAt: json['loggedAt'] != null
-          ? DateTime.parse(json['loggedAt'] as String)
-          : null,
+      loggedAt: _parseLoggedAt(json['loggedAt'], json['name'] as String),
     );
   }
 }
