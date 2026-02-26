@@ -273,27 +273,31 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       final List<dynamic> siriItems = jsonDecode(siriItemsJson);
       if (siriItems.isEmpty) return;
 
-      setState(() {
-        for (final item in siriItems) {
-          final citations = item['citations'] != null
-              ? List<String>.from(item['citations'])
-              : <String>[];
-          DateTime? loggedAt;
-          if (item['loggedAt'] != null) {
-            loggedAt = DateTime.tryParse(item['loggedAt'] as String);
-          }
-          final foodItem = FoodItem(
-            name: item['name'] as String,
-            carbs: (item['carbs'] as num).toDouble(),
-            details: item['details'] as String?,
-            citations: citations,
-            loggedAt: loggedAt ?? DateTime.now(),
-          );
-          foodItems.insert(0, foodItem);
-          _listKey.currentState?.insertItem(0, duration: const Duration(milliseconds: 400));
+      // Build all items first, then insert one at a time to keep
+      // AnimatedList's internal count in sync with the data list.
+      final newItems = <FoodItem>[];
+      for (final item in siriItems) {
+        final citations = item['citations'] != null
+            ? List<String>.from(item['citations'])
+            : <String>[];
+        DateTime? loggedAt;
+        if (item['loggedAt'] != null) {
+          loggedAt = DateTime.tryParse(item['loggedAt'] as String);
         }
-        // Sync totalCarbs from shared UserDefaults (Siri already updated it)
-      });
+        newItems.add(FoodItem(
+          name: item['name'] as String,
+          carbs: (item['carbs'] as num).toDouble(),
+          details: item['details'] as String?,
+          citations: citations,
+          loggedAt: loggedAt ?? DateTime.now(),
+        ));
+      }
+      for (final foodItem in newItems) {
+        setState(() {
+          foodItems.insert(0, foodItem);
+        });
+        _listKey.currentState?.insertItem(0, duration: const Duration(milliseconds: 400));
+      }
 
       // Clear the Siri buffer so we don't re-import on next launch
       await HomeWidget.saveWidgetData<String?>('siriLoggedItems', null);
@@ -402,17 +406,20 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   }
 
   void _resetTotal() {
-    for (int i = foodItems.length - 1; i >= 0; i--) {
-      _listKey.currentState?.removeItem(
-        i,
-        (context, animation) => _buildAnimatedItem(foodItems[i], animation),
-        duration: const Duration(milliseconds: 300),
-      );
-    }
+    // Capture items before clearing so animation builders have valid references.
+    final snapshot = List<FoodItem>.from(foodItems);
     setState(() {
       foodItems.clear();
       totalCarbs = 0.0;
     });
+    for (int i = snapshot.length - 1; i >= 0; i--) {
+      final item = snapshot[i];
+      _listKey.currentState?.removeItem(
+        i,
+        (context, animation) => _buildAnimatedItem(item, animation),
+        duration: const Duration(milliseconds: 300),
+      );
+    }
     _saveData();
     _updateWidget();
   }
