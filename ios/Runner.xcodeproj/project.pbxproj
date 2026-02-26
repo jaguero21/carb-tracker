@@ -240,6 +240,7 @@
 			isa = PBXGroup;
 			children = (
 				CW0001A2 /* CarbWiseWidget.swift */,
+				250470382F4FA6CE00AAEB6C /* CarbShared.swift */,
 				CW0001A5 /* Info.plist */,
 				CW0001A6 /* CarbWiseWidgetExtension.entitlements */,
 			);
@@ -542,6 +543,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
+				2504703A2F4FA6CE00AAEB6C /* CarbShared.swift in Sources */,
 				SI0001B1 /* CarbIntents.swift in Sources */,
 				SI0001B2 /* CarpeCarbShortcuts.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
@@ -552,6 +554,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				250470392F4FA6CE00AAEB6C /* CarbShared.swift in Sources */,
 				CW0001A1 /* CarbWiseWidget.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
