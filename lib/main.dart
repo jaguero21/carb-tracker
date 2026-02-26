@@ -580,55 +580,70 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     final controller = TextEditingController(
       text: dailyCarbGoal != null ? dailyCarbGoal!.toStringAsFixed(0) : '',
     );
+    String? errorText;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Daily Carb Goal'),
-        content: TextField(
-          controller: controller,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          autofocus: true,
-          decoration: const InputDecoration(
-            hintText: 'e.g. 50',
-            suffixText: 'g',
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Daily Carb Goal'),
+          content: TextField(
+            controller: controller,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            autofocus: true,
+            decoration: InputDecoration(
+              hintText: 'e.g. 50',
+              suffixText: 'g',
+              errorText: errorText,
+            ),
           ),
-        ),
-        actions: [
-          if (dailyCarbGoal != null)
+          actions: [
+            if (dailyCarbGoal != null)
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    dailyCarbGoal = null;
+                  });
+                  _saveData();
+                  _updateWidget();
+                  Navigator.pop(context);
+                },
+                child: const Text(
+                  'Clear',
+                  style: TextStyle(color: AppColors.terracotta),
+                ),
+              ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
             TextButton(
               onPressed: () {
-                setState(() {
-                  dailyCarbGoal = null;
-                });
-                _saveData();
-                _updateWidget();
-                Navigator.pop(context);
-              },
-              child: const Text(
-                'Clear',
-                style: TextStyle(color: AppColors.terracotta),
-              ),
-            ),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              final value = double.tryParse(controller.text.trim());
-              if (value != null && value > 0) {
+                final text = controller.text.trim();
+                if (text.isEmpty) {
+                  setDialogState(() => errorText = 'Enter a goal');
+                  return;
+                }
+                final value = double.tryParse(text);
+                if (value == null) {
+                  setDialogState(() => errorText = 'Enter a valid number');
+                  return;
+                }
+                if (value <= 0) {
+                  setDialogState(() => errorText = 'Goal must be greater than 0');
+                  return;
+                }
                 setState(() {
                   dailyCarbGoal = value;
                 });
                 _saveData();
                 _updateWidget();
                 Navigator.pop(context);
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
       ),
     );
   }
