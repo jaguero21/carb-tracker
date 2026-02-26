@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:health/health.dart';
 import '../models/food_item.dart';
 
@@ -24,6 +25,7 @@ class HealthKitService {
       );
       return _isAuthorized;
     } catch (e) {
+      debugPrint('HealthKit: authorization failed: $e');
       _isAuthorized = false;
       return false;
     }
@@ -40,7 +42,8 @@ class HealthKitService {
       );
       _isAuthorized = result ?? false;
       return _isAuthorized;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('HealthKit: hasPermissions check failed: $e');
       return false;
     }
   }
@@ -61,7 +64,8 @@ class HealthKitService {
         recordingMethod: RecordingMethod.manual,
       );
       return success;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('HealthKit: writeFoodItem failed for "${item.name}": $e');
       return false;
     }
   }
@@ -77,7 +81,8 @@ class HealthKitService {
         endTime: item.loggedAt.add(const Duration(minutes: 1)),
       );
       return success;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('HealthKit: deleteFoodItem failed for "${item.name}": $e');
       return false;
     }
   }
@@ -101,7 +106,8 @@ class HealthKitService {
         endTime: end,
       );
       return _health.removeDuplicates(dataPoints);
-    } catch (_) {
+    } catch (e) {
+      debugPrint('HealthKit: fetchNutritionData failed: $e');
       return [];
     }
   }

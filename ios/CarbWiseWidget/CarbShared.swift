@@ -9,39 +9,49 @@ import WidgetKit
 struct CarbDataStore {
     static let appGroupID = "group.com.jamesaguero.mycarbtracker"
 
+    // UserDefaults key constants — must match StorageKeys in Dart
+    struct Keys {
+        static let totalCarbs = "totalCarbs"
+        static let lastFoodName = "lastFoodName"
+        static let lastFoodCarbs = "lastFoodCarbs"
+        static let dailyCarbGoal = "dailyCarbGoal"
+        static let siriLoggedItems = "siriLoggedItems"
+        static let flutterTotalCarbs = "flutter.total_carbs"
+    }
+
     private static var defaults: UserDefaults? {
         UserDefaults(suiteName: appGroupID)
     }
 
     static func totalCarbs() -> Double {
-        defaults?.double(forKey: "totalCarbs") ?? 0.0
+        defaults?.double(forKey: Keys.totalCarbs) ?? 0.0
     }
 
     static func lastFoodName() -> String {
-        defaults?.string(forKey: "lastFoodName") ?? ""
+        defaults?.string(forKey: Keys.lastFoodName) ?? ""
     }
 
     static func lastFoodCarbs() -> Double {
-        defaults?.double(forKey: "lastFoodCarbs") ?? 0.0
+        defaults?.double(forKey: Keys.lastFoodCarbs) ?? 0.0
     }
 
     static func dailyCarbGoal() -> Double? {
-        let value = defaults?.double(forKey: "dailyCarbGoal") ?? 0.0
+        let value = defaults?.double(forKey: Keys.dailyCarbGoal) ?? 0.0
         return value > 0 ? value : nil
     }
 
     static func addFood(name: String, carbs: Double, details: String? = nil) {
         let newTotal = totalCarbs() + carbs
-        defaults?.set(newTotal, forKey: "totalCarbs")
-        defaults?.set(name, forKey: "lastFoodName")
-        defaults?.set(carbs, forKey: "lastFoodCarbs")
+        defaults?.set(newTotal, forKey: Keys.totalCarbs)
+        defaults?.set(name, forKey: Keys.lastFoodName)
+        defaults?.set(carbs, forKey: Keys.lastFoodCarbs)
 
         // Also update the Flutter SharedPreferences key so the app sees the new total
-        defaults?.set(newTotal, forKey: "flutter.total_carbs")
+        defaults?.set(newTotal, forKey: Keys.flutterTotalCarbs)
 
         // Store Siri-logged items as JSON string so Flutter can read via HomeWidget
         var siriItems: [[String: Any]] = []
-        if let existing = defaults?.string(forKey: "siriLoggedItems"),
+        if let existing = defaults?.string(forKey: Keys.siriLoggedItems),
            let data = existing.data(using: .utf8),
            let parsed = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
             siriItems = parsed
@@ -51,7 +61,7 @@ struct CarbDataStore {
         siriItems.append(entry)
         if let jsonData = try? JSONSerialization.data(withJSONObject: siriItems),
            let jsonString = String(data: jsonData, encoding: .utf8) {
-            defaults?.set(jsonString, forKey: "siriLoggedItems")
+            defaults?.set(jsonString, forKey: Keys.siriLoggedItems)
         }
 
         #if !os(watchOS)

@@ -5,6 +5,7 @@ import 'dart:convert';
 import '../models/food_item.dart';
 import '../config/app_colors.dart';
 import '../config/app_icons.dart';
+import '../config/storage_keys.dart';
 
 class SavedFoodListPage extends StatefulWidget {
   final void Function(FoodItem)? onAddFood;
@@ -27,7 +28,7 @@ class _SavedFoodListPageState extends State<SavedFoodListPage> {
 
   Future<void> _loadSavedFoods() async {
     final prefs = await SharedPreferences.getInstance();
-    final savedJson = prefs.getString('saved_foods');
+    final savedJson = prefs.getString(StorageKeys.savedFoods);
 
     if (savedJson != null) {
       final List<dynamic> decoded = jsonDecode(savedJson);
@@ -64,7 +65,7 @@ class _SavedFoodListPageState extends State<SavedFoodListPage> {
 
     if (confirmed == true) {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('saved_foods');
+      await prefs.remove(StorageKeys.savedFoods);
       setState(() {
         _savedFoods.clear();
       });
@@ -78,7 +79,7 @@ class _SavedFoodListPageState extends State<SavedFoodListPage> {
     HapticFeedback.mediumImpact();
     final prefs = await SharedPreferences.getInstance();
     final encoded = jsonEncode(_savedFoods.map((f) => f.toJson()).toList());
-    await prefs.setString('saved_foods', encoded);
+    await prefs.setString(StorageKeys.savedFoods, encoded);
   }
 
   @override
