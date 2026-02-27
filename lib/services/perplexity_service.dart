@@ -30,7 +30,7 @@ class PerplexityService {
               'Content-Type': 'application/json',
             },
             body: jsonEncode({
-              'model': 'sonar',
+              'model': 'sonar-pro',
               'messages': [
                 {
                   'role': 'system',
@@ -120,7 +120,7 @@ class PerplexityService {
                 'Content-Type': 'application/json',
               },
               body: jsonEncode({
-                'model': 'sonar',
+                'model': 'sonar-pro',
                 'messages': [
                   {
                     'role': 'system',
