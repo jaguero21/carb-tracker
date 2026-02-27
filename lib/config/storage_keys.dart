@@ -13,6 +13,7 @@ class StorageKeys {
   static const String lastSaveDate = 'last_save_date';
   static const String dailyCarbGoal = 'daily_carb_goal';
   static const String savedFoods = 'saved_foods';
+  static const String dailyResetHour = 'daily_reset_hour';
 
   // HomeWidget / UserDefaults keys (shared with native iOS)
   static const String widgetTotalCarbs = 'totalCarbs';

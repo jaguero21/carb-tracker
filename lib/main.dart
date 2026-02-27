@@ -12,8 +12,7 @@ import 'dart:ui';
 import 'services/perplexity_service.dart';
 import 'services/health_kit_service.dart';
 import 'models/food_item.dart';
-import 'screens/saved_food_list_page.dart';
-import 'screens/carb_history_page.dart';
+import 'screens/settings_page.dart';
 import 'config/app_colors.dart';
 import 'config/app_icons.dart';
 import 'config/storage_keys.dart';
@@ -193,6 +192,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   bool isLoading = false;
   bool showingDailyTotal = false;
   double? dailyCarbGoal;
+  int resetHour = 0;
 
   @override
   void initState() {
@@ -237,6 +237,8 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   Future<void> _loadSavedData() async {
     final prefs = await SharedPreferences.getInstance();
     final savedGoal = prefs.getDouble(StorageKeys.dailyCarbGoal);
+    final savedResetHour = prefs.getInt(StorageKeys.dailyResetHour) ?? 0;
+    resetHour = savedResetHour;
     final lastSaveDate = prefs.getString(StorageKeys.lastSaveDate);
     final isNewDay = lastSaveDate != null && lastSaveDate != _todayString();
 
@@ -344,7 +346,11 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   }
 
   String _todayString() {
-    final now = DateTime.now();
+    var now = DateTime.now();
+    // If before the reset hour, treat it as the previous day
+    if (resetHour > 0 && now.hour < resetHour) {
+      now = now.subtract(const Duration(days: 1));
+    }
     return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
   }
 
@@ -589,78 +595,28 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     );
   }
 
-  void _showGoalDialog() {
-    final controller = TextEditingController(
-      text: dailyCarbGoal != null ? dailyCarbGoal!.toStringAsFixed(0) : '',
-    );
-    String? errorText;
-
-    showDialog(
-      context: context,
-      barrierColor: Colors.black.withValues(alpha: 0.3),
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: Theme.of(context).colorScheme.surface.withValues(alpha: 0.92),
-          title: const Text('Daily Carb Goal'),
-          content: TextField(
-            controller: controller,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            autofocus: true,
-            decoration: InputDecoration(
-              hintText: 'e.g. 50',
-              suffixText: 'g',
-              errorText: errorText,
-            ),
-          ),
-          actions: [
-            if (dailyCarbGoal != null)
-              TextButton(
-                onPressed: () {
-                  setState(() {
-                    dailyCarbGoal = null;
-                  });
-                  _saveData();
-                  _updateWidget();
-                  Navigator.pop(context);
-                },
-                child: const Text(
-                  'Clear',
-                  style: TextStyle(color: AppColors.terracotta),
-                ),
-              ),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                final text = controller.text.trim();
-                if (text.isEmpty) {
-                  setDialogState(() => errorText = 'Enter a goal');
-                  return;
-                }
-                final value = double.tryParse(text);
-                if (value == null) {
-                  setDialogState(() => errorText = 'Enter a valid number');
-                  return;
-                }
-                if (value <= 0) {
-                  setDialogState(() => errorText = 'Goal must be greater than 0');
-                  return;
-                }
-                setState(() {
-                  dailyCarbGoal = value;
-                });
-                _saveData();
-                _updateWidget();
-                Navigator.pop(context);
-              },
-              child: const Text('Save'),
-            ),
-          ],
+  Future<void> _openSettings() async {
+    final result = await Navigator.push<SettingsResult>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SettingsPage(
+          dailyCarbGoal: dailyCarbGoal,
+          resetHour: resetHour,
+          onAddFood: _addSavedFood,
+          healthKitService: _healthKitService,
         ),
       ),
     );
+    if (result != null) {
+      setState(() {
+        dailyCarbGoal = result.dailyCarbGoal;
+        resetHour = result.resetHour;
+      });
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(StorageKeys.dailyResetHour, resetHour);
+      _saveData();
+      _updateWidget();
+    }
   }
 
   String _formatTime(DateTime dt) {
@@ -801,34 +757,10 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
           ),
         ),
         actions: [
-          if (Platform.isIOS)
-            IconButton(
-              icon: AppIcons.historyIcon(size: 24),
-              tooltip: 'Carb History',
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => CarbHistoryPage(
-                      healthKitService: _healthKitService,
-                    ),
-                  ),
-                );
-              },
-            ),
           IconButton(
-            icon: AppIcons.bookmarkIcon(size: 24),
-            tooltip: 'Saved Foods',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => SavedFoodListPage(
-                    onAddFood: _addSavedFood,
-                  ),
-                ),
-              );
-            },
+            icon: AppIcons.settingsIcon(size: 24),
+            tooltip: 'Settings',
+            onPressed: _openSettings,
           ),
         ],
       ),
@@ -859,7 +791,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                     : null,
                 onLongPress: () {
                   HapticFeedback.mediumImpact();
-                  _showGoalDialog();
+                  _openSettings();
                 },
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 32.0),
