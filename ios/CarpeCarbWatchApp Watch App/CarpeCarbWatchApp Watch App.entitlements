@@ -6,8 +6,8 @@
 	<true/>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.com.jamesaguero.mycarbtracker</string>
 		<string>group.com.jamesaguero.carbtracker</string>
+		<string>group.com.jamesaguero.mycarbtracker</string>
 	</array>
 </dict>
 </plist>

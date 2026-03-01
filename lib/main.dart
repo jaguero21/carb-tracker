@@ -76,15 +76,15 @@ ThemeData _lightTheme() {
     inputDecorationTheme: InputDecorationTheme(
       border: OutlineInputBorder(
         borderSide: const BorderSide(color: AppColors.border, width: 1.5),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(999),
       ),
       enabledBorder: OutlineInputBorder(
         borderSide: const BorderSide(color: AppColors.borderMedium, width: 1.5),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(999),
       ),
       focusedBorder: OutlineInputBorder(
         borderSide: const BorderSide(color: AppColors.sage, width: 2),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(999),
       ),
     ),
     snackBarTheme: SnackBarThemeData(
@@ -875,7 +875,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                         hintText: 'Enter food item...',
                         hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
                         contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
+                          horizontal: 24,
                           vertical: 16,
                         ),
                       ),
@@ -888,6 +888,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                         onPressed: isLoading ? null : _addFood,
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: const StadiumBorder(),
                         ),
                         child: isLoading
                             ? const SizedBox(
