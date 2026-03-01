@@ -618,7 +618,7 @@ class _SettingsPageState extends State<SettingsPage> {
       padding: const EdgeInsets.symmetric(horizontal: 24.0),
       children: [
         // Daily Carb Goal card
-        GlassContainer(
+        Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -678,7 +678,7 @@ class _SettingsPageState extends State<SettingsPage> {
         const SizedBox(height: 16),
 
         // Daily Reset Time card
-        GlassContainer(
+        Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

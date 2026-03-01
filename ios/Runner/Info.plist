@@ -22,27 +22,48 @@
 	<string>$(FLUTTER_BUILD_NAME)</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
-	<key>CFBundleVersion</key>
-	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.jamesaguero.mycarbtracker</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>carpecarb</string>
 			</array>
-			<key>CFBundleURLName</key>
-			<string>com.jamesaguero.mycarbtracker</string>
 		</dict>
 	</array>
-	<key>NSSiriUsageDescription</key>
-	<string>CarpeCarb uses Siri to let you log food and check your daily carb intake hands-free.</string>
+	<key>CFBundleVersion</key>
+	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
 	<key>NSHealthShareUsageDescription</key>
 	<string>CarpeCarb reads your carb intake history from Apple Health to show trends and daily totals.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>CarpeCarb saves your carb intake to Apple Health so you can track nutrition across apps.</string>
-	<key>LSRequiresIPhoneOS</key>
-	<true/>
+	<key>NSSiriUsageDescription</key>
+	<string>CarpeCarb uses Siri to let you log food and check your daily carb intake hands-free.</string>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneClassName</key>
+					<string>UIWindowScene</string>
+					<key>UISceneConfigurationName</key>
+					<string>flutter</string>
+					<key>UISceneDelegateClassName</key>
+					<string>FlutterSceneDelegate</string>
+					<key>UISceneStoryboardFile</key>
+					<string>Main</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
