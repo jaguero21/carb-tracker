@@ -1,8 +1,8 @@
-# CarbWise Icon Pack Implementation Guide
+# CarpeCarb Icon Pack Implementation Guide
 
 ## 📦 What's Included
 
-The CarbWise icon pack has been successfully integrated into your Flutter app! Here's what's been added:
+The CarpeCarb icon pack has been successfully integrated into your Flutter app! Here's what's been added:
 
 ### 1. **Brand Colors** (`lib/config/app_colors.dart`)
 - **Sage** (#7D9B76) - Primary brand color
@@ -43,8 +43,8 @@ AppIcons.icon(AppIcons.search, size: 20, color: AppColors.sage)
 
 ## 🎨 Theme Integration
 
-The app theme has been fully updated with CarbWise colors:
-- App name changed to "CarbWise"
+The app theme has been fully updated with CarpeCarb colors:
+- App name changed to "CarpeCarb"
 - Sage color scheme throughout
 - Warm cream background
 - Custom bookmark and delete icons in swipe actions
@@ -143,7 +143,7 @@ Container(
 
 ## 🎯 Design Philosophy
 
-The CarbWise icon pack follows these principles:
+The CarpeCarb icon pack follows these principles:
 - **Warm & Natural**: Sage greens and honey yellows evoke wholesome, natural foods
 - **Clarity**: Clean, simple shapes that are easy to understand at a glance
 - **Consistency**: All icons use the same stroke weights and corner radii
@@ -173,4 +173,4 @@ Want to add more icons? Follow this pattern:
 
 ---
 
-**Enjoy your new CarbWise design! 🌿🍽️**
+**Enjoy your new CarpeCarb design! 🌿🍽️**

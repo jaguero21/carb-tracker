@@ -254,7 +254,7 @@ final validPattern = RegExp(r"^[a-zA-Z0-9 \-,.()&%]+$");
 
 **Status:** ✅ **Production-Ready**
 
-The CarbWise app now has **enterprise-grade input validation** suitable for public release. All critical vulnerabilities have been fixed with comprehensive test coverage to prevent regressions.
+The CarpeCarb app now has **enterprise-grade input validation** suitable for public release. All critical vulnerabilities have been fixed with comprehensive test coverage to prevent regressions.
 
 ### Risk Assessment
 - **Before:** HIGH risk (9 critical vulnerabilities)

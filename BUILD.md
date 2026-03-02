@@ -1,8 +1,14 @@
-# CarbWise Build Instructions
+# CarpeCarb Build Instructions
 
 ## Building with Code Obfuscation
 
-To protect your API keys and make reverse engineering more difficult, **always build with obfuscation enabled** for release builds.
+Always build with obfuscation enabled for release builds.
+
+### iOS Release Build
+
+```bash
+flutter build ios --release --obfuscate --split-debug-info=build/ios/outputs/symbols
+```
 
 ### Android Release Build
 
@@ -14,60 +20,34 @@ flutter build apk --release --obfuscate --split-debug-info=build/app/outputs/sym
 flutter build appbundle --release --obfuscate --split-debug-info=build/app/outputs/symbols
 ```
 
-### iOS Release Build
-
-```bash
-# Build for iOS with obfuscation
-flutter build ios --release --obfuscate --split-debug-info=build/ios/outputs/symbols
-```
-
 ## What Obfuscation Does
 
-- **Renames classes, methods, and variables** to meaningless names (e.g., `a`, `b`, `c`)
-- **Makes decompilation harder** but not impossible
-- **Stores debug symbols** separately so you can still debug crashes
-- **Reduces APK/IPA size** slightly
+- Renames classes, methods, and variables to meaningless names
+- Makes decompilation harder
+- Stores debug symbols separately so you can still debug crashes
+- Reduces APK/IPA size slightly
 
 ## Important Notes
 
-⚠️ **Obfuscation is NOT complete security** - it only makes extraction harder, not impossible. For production apps, use a backend API proxy instead of embedding keys in the app.
-
-✅ **Save the debug symbols** (`build/app/outputs/symbols`) - you'll need them to read crash reports from users
+- Save the debug symbols (`build/*/outputs/symbols`) — you need them to read crash reports
+- The Perplexity API key is NOT in the app binary — it lives in Google Cloud Secret Manager and is accessed only by the Firebase Cloud Function
 
 ## Development Builds
 
-For development and testing, you can skip obfuscation:
-
 ```bash
-# Development build
 flutter run
-
-# Or debug APK
-flutter build apk --debug
 ```
 
-## Verifying Obfuscation
+## Prerequisites
 
-To verify obfuscation worked:
-
-1. Extract the APK: `unzip build/app/outputs/flutter-apk/app-release.apk -d extracted`
-2. Decompile with jadx: `jadx extracted/classes.dex`
-3. Look for obfuscated names in the output
-
-## Environment Setup
-
-Before building, ensure your `.env` file is configured:
+Before building, ensure Firebase is configured:
 
 ```bash
-# Check if .env exists
-cat .env
+# Verify Firebase project is set up
+firebase projects:list
 
-# Should contain:
-# PERPLEXITY_API_KEY=your-key-here
+# Verify Cloud Function is deployed
+firebase functions:list
 ```
 
-If missing, copy from template:
-```bash
-cp .env.example .env
-# Edit .env and add your API key
-```
+No `.env` file or local API key is needed — the key is managed server-side via Secret Manager.

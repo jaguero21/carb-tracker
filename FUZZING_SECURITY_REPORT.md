@@ -1,6 +1,6 @@
 # Input Fuzzing Security Report
 **Generated:** 2026-02-13
-**App:** CarbWise (Carb Tracker)
+**App:** CarpeCarb (Carb Tracker)
 **Test Coverage:** 29 test cases across 9 categories
 
 ## Executive Summary

@@ -1,90 +1,89 @@
-# Carb Tracker App
+# CarpeCarb
 
-A minimalist Flutter app that tracks carbohydrate intake using the Perplexity API.
+A minimalist iOS app for tracking daily carbohydrate intake, powered by AI-driven nutrition lookup.
 
-## Setup Instructions
+## Architecture
 
-### 1. Install Flutter
-If you haven't already:
-- Download Flutter SDK from https://flutter.dev
-- Follow the installation guide for your operating system
-- Run `flutter doctor` to verify installation
-
-### 2. Configure Your API Key
-1. Open `lib/services/perplexity_service.dart`
-2. Replace `'YOUR_PERPLEXITY_API_KEY_HERE'` with your actual Perplexity API key
-
-### 3. Install Dependencies
-```bash
-cd carb_tracker
-flutter pub get
 ```
-
-### 4. Run the App
-```bash
-# For iOS simulator (requires Xcode)
-flutter run
-
-# To list available devices
-flutter devices
+Flutter App  →  Firebase Cloud Function  →  Perplexity API
+(no API key)    (Secret Manager)            (protected)
 ```
 
 ## Features
 
-- **Minimalist Interface**: Clean, distraction-free design
-- **Quick Food Entry**: Simple text input for adding foods
-- **Automatic Carb Calculation**: Uses Perplexity API to determine carb content
-- **Running Total**: See your total carbs at a glance
-- **Persistent Storage**: Your daily total is saved automatically
-- **Swipe to Delete**: Remove items by swiping left
-- **Reset Function**: Clear all entries and start fresh
+- Natural language food entry — type what you ate and get carb breakdowns with cited sources
+- Daily carb goal tracking with a visual progress ring
+- Apple Health integration for syncing carb data
+- Siri support for hands-free logging
+- Home Screen widget for daily totals at a glance
+- Favorites and history for quick re-entry
+- Configurable daily reset time
+- Frosted glass UI design
+
+## Setup
+
+### 1. Install Flutter
+
+- Download Flutter SDK from https://flutter.dev
+- Run `flutter doctor` to verify installation
+
+### 2. Firebase Configuration
+
+The app uses Firebase Cloud Functions to securely proxy Perplexity API calls. See [`SECURITY.md`](SECURITY.md) for the full architecture.
+
+1. Install Firebase CLI: `npm install -g firebase-tools`
+2. Login: `firebase login`
+3. Configure FlutterFire: `flutterfire configure --project=carpecarb`
+4. Set the API secret: `echo -n "YOUR_KEY" | firebase functions:secrets:set PERPLEXITY_API_KEY --data-file -`
+5. Deploy: `firebase deploy --only functions`
+
+### 3. Run
+
+```bash
+flutter pub get
+flutter run
+```
 
 ## Project Structure
 
 ```
 lib/
-  ├── main.dart                    # Main app and home screen
+  ├── main.dart                              # App entry point and home screen
+  ├── firebase_options.dart                  # Generated Firebase config
   ├── models/
-  │   └── food_item.dart          # Food item data model
-  └── services/
-      └── perplexity_service.dart # Perplexity API integration
+  │   └── food_item.dart                     # Food item data model
+  ├── services/
+  │   ├── perplexity_firebase_service.dart   # Firebase-backed nutrition lookup
+  │   └── health_kit_service.dart            # Apple HealthKit integration
+  ├── screens/
+  │   └── settings_page.dart                 # Settings with favorites, history, goals
+  ├── config/
+  │   ├── app_colors.dart                    # Color palette
+  │   ├── app_icons.dart                     # SVG icon helpers
+  │   └── storage_keys.dart                  # SharedPreferences keys
+  ├── utils/
+  │   └── input_validation.dart              # Input sanitization and validation
+  └── widgets/
+      └── glass_container.dart               # Frosted glass UI component
+functions/
+  ├── index.js                               # Cloud Function (Perplexity API proxy)
+  └── package.json                           # Node.js dependencies
 ```
 
 ## How It Works
 
-1. User enters a food item (e.g., "banana", "1 slice of bread")
-2. App sends the query to Perplexity API
-3. API returns the carbohydrate content
-4. App adds the food to the list and updates the total
-5. Data is saved locally using SharedPreferences
+1. User enters a food item (e.g., "Big Mac and fries")
+2. Client validates and sanitizes the input
+3. Request is sent to a Firebase Cloud Function
+4. Cloud Function calls Perplexity API with the API key from Secret Manager
+5. Response is parsed into structured food items with carb counts and citations
+6. Results are stored locally and optionally synced to Apple Health
 
-## Customization Ideas
+## Build
 
-- Add calorie tracking
-- Include protein and fat tracking
-- Add date-based history
-- Create daily goals
-- Add search history/favorites
-- Include meal categorization (breakfast, lunch, dinner)
+```bash
+# iOS release with obfuscation
+flutter build ios --release --obfuscate --split-debug-info=build/ios/outputs/symbols
+```
 
-## Testing
-
-Before publishing, test with various food inputs:
-- Simple items: "apple", "banana"
-- With quantities: "2 slices of bread", "100g rice"
-- Complex items: "chicken caesar salad"
-- Ambiguous items: "sandwich" (to see how API handles it)
-
-## Next Steps
-
-1. Add your Perplexity API key
-2. Run the app and test basic functionality
-3. Customize the UI colors/styling to your preference
-4. Consider adding more features based on your needs
-5. Set up iOS signing for deployment
-
-## Notes
-
-- API calls may take 1-3 seconds depending on connection
-- The app assumes standard serving sizes unless specified
-- Local storage persists until app is uninstalled or manually reset
+See [`BUILD.md`](BUILD.md) for full build instructions.
