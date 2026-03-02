@@ -2,277 +2,127 @@
 
 ## Overview
 
-This document outlines the security measures implemented in CarbWise and recommendations for production deployment.
+CarpeCarb is a carb tracking iOS app that uses AI-powered nutrition lookup via the Perplexity API. All API communication is routed through a Firebase Cloud Function so that no API keys are stored in or shipped with the app.
 
 ---
 
-## ✅ Current Security Measures
+## Architecture
 
-### 1. Environment Variables
-**Status:** ✅ Implemented
+```
+Flutter App  →  Firebase Cloud Function  →  Perplexity API
+(no API key)    (has API key via Secret     (protected)
+                 Manager)
+```
 
-- API keys are stored in `.env` file (not committed to git)
-- Loaded at runtime using `flutter_dotenv`
-- `.env` and `lib/config/api_keys.dart` are in `.gitignore`
+The app never contacts the Perplexity API directly. The Cloud Function acts as a secure proxy, holding the API key server-side via Google Cloud Secret Manager.
+
+---
+
+## Security Measures
+
+### 1. Server-Side API Key
+**Status:** Implemented
+
+The Perplexity API key is stored in Google Cloud Secret Manager and accessed only by the Cloud Function at runtime. It is never embedded in the app binary, transmitted to the client, or committed to source control.
 
 **Files:**
-- [`.env`](.env) - Contains actual API key (gitignored)
-- [`.env.example`](.env.example) - Template file (committed to git)
+- [`functions/index.js`](functions/index.js) — Cloud Function that accesses the secret
+- [`.gitignore`](.gitignore) — Excludes `.env`, `GoogleService-Info.plist`, and API key files
 
-### 2. Rate Limiting
-**Status:** ✅ Implemented
+### 2. Input Validation & Sanitization
+**Status:** Implemented
 
-- Client-side rate limiting prevents API abuse
-- Minimum 1.5 seconds between requests
-- Prevents accidental rapid-fire requests
+User input is validated and sanitized on both the client and server before reaching the Perplexity API.
 
-**Location:** [`lib/services/perplexity_service.dart`](lib/services/perplexity_service.dart)
-
-### 3. Code Obfuscation
-**Status:** ✅ Configured
-
-- Build scripts use `--obfuscate` flag
-- Symbol files stored separately for crash debugging
-- Makes reverse engineering more difficult
-
-**See:** [`BUILD.md`](BUILD.md) for build instructions
-
-### 4. Input Validation
-**Status:** ✅ Implemented
-
-- Food input validated before API calls
-- Length checks (2-100 characters)
+**Client-side** ([`lib/utils/input_validation.dart`](lib/utils/input_validation.dart)):
+- Length enforcement (2-100 characters)
 - Character whitelist (alphanumeric + common punctuation)
-- Prevents injection attacks
+- Prompt injection detection (blocks keywords like "ignore", "system", "override")
+- Control character stripping and whitespace normalization
 
-**Location:** [`lib/main.dart`](lib/main.dart) - `_validateFoodInput()`
+**Server-side** ([`functions/index.js`](functions/index.js)):
+- Duplicate length and type validation
+- Sanitization of control characters, null bytes, and whitespace
+- Input is never interpolated into the system prompt
 
-### 5. Error Handling
-**Status:** ✅ Implemented
+### 3. Rate Limiting
+**Status:** Implemented
 
-- Proper HTTP status code handling
-- Timeout protection (30 seconds)
-- Network error detection
-- User-friendly error messages
+- Client-side: 1500ms minimum interval between requests prevents accidental rapid-fire submissions
+- Server-side: Firebase Cloud Functions enforce per-instance concurrency limits
 
----
+**Location:** [`lib/services/perplexity_firebase_service.dart`](lib/services/perplexity_firebase_service.dart)
 
-## ⚠️ Known Vulnerabilities
+### 4. Error Handling
+**Status:** Implemented
 
-### 1. Client-Side API Key Exposure
-**Severity:** CRITICAL (for production)
-**Status:** 🟡 Mitigated but not solved
+- Firebase callable function errors are mapped to user-friendly messages
+- API authentication failures, rate limits, and server errors are handled distinctly
+- No raw error details or stack traces are exposed to the client
+- Server-side retry logic (up to 3 attempts) handles transient Perplexity API failures
 
-**Issue:**
-Even with environment variables and obfuscation, the API key is still embedded in the compiled app binary. A determined attacker can extract it.
+### 5. Code Obfuscation
+**Status:** Configured
 
-**Current Mitigation:**
-- Environment variables (not hardcoded)
-- Code obfuscation enabled
-- Rate limiting to prevent abuse
+- Release builds use `--obfuscate` and `--split-debug-info` flags
+- Symbol files are stored separately for crash debugging
 
-**Recommended Solution for Production:**
-Implement a backend API proxy (see [Backend Solutions](#backend-solutions) below)
+**See:** [`BUILD.md`](BUILD.md)
 
----
+### 6. Local Data Storage
+**Status:** Implemented
 
-## 🛡️ Production Recommendations
-
-### Option A: Firebase Functions (Recommended)
-
-**Why:** Free tier, automatic scaling, no server management
-
-**Setup:**
-1. Create Firebase project
-2. Deploy cloud function as API proxy
-3. Store API key in Firebase environment config
-4. Update Flutter app to call Firebase function instead of Perplexity directly
-
-**Example Function:**
-```javascript
-exports.getCarbCount = functions.https.onCall(async (data, context) => {
-  const { foodItem } = data;
-
-  // Optional: Add authentication
-  if (!context.auth) {
-    throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
-  }
-
-  // Call Perplexity API with server-side key
-  const response = await fetch('https://api.perplexity.ai/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${functions.config().perplexity.key}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({/* ... */})
-  });
-
-  return await response.json();
-});
-```
-
-**Flutter Integration:**
-```dart
-import 'package:cloud_functions/cloud_functions.dart';
-
-Future<double> getCarbCount(String foodItem) async {
-  final result = await FirebaseFunctions.instance
-    .httpsCallable('getCarbCount')
-    .call({'foodItem': foodItem});
-
-  return result.data['carbs'];
-}
-```
-
-**Costs:** Free for up to 125K requests/month
+- Food items and preferences are stored locally via `SharedPreferences`
+- Carb data syncs to Apple Health (with user permission) via the HealthKit API
+- No user data is sent to any server other than the food lookup query text to the Cloud Function
 
 ---
 
-### Option B: Custom Backend API
+## Data Flow
 
-**Why:** Full control, can add features like user accounts, analytics, etc.
+1. User types a food item (e.g., "Big Mac and fries")
+2. Client validates and sanitizes the input
+3. Client calls the `getMultipleCarbCounts` Firebase Cloud Function
+4. Cloud Function retrieves the Perplexity API key from Secret Manager
+5. Cloud Function calls the Perplexity API with the sanitized input
+6. Cloud Function parses the response into structured food items and returns them
+7. Client stores results locally and optionally syncs to Apple Health
 
-**Recommended Platforms:**
-- **Vercel** (free tier, easy deployment)
-- **Railway** (generous free tier)
-- **Fly.io** (free tier available)
-- **Render** (free tier with limitations)
-
-**Example Backend (Node.js/Express):**
-```javascript
-const express = require('express');
-const app = express();
-
-app.use(express.json());
-
-app.post('/api/carbs', async (req, res) => {
-  const { foodItem } = req.body;
-
-  // Add rate limiting (e.g., using express-rate-limit)
-  // Add authentication if needed
-
-  try {
-    const response = await fetch('https://api.perplexity.ai/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.PERPLEXITY_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({/* ... */})
-    });
-
-    const data = await response.json();
-    res.json(data);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.listen(3000);
-```
+No user accounts, authentication tokens, or personal identifiers are collected or transmitted.
 
 ---
 
-## 🔒 API Key Management
+## API Key Rotation
 
-### Rotating API Keys
+If the Perplexity API key is compromised:
 
-If you suspect your API key has been compromised:
-
-1. **Generate new key** at https://www.perplexity.ai/settings/api
-2. **Update `.env` file:**
+1. Revoke the key at https://www.perplexity.ai/settings/api
+2. Generate a new key
+3. Update the secret:
    ```bash
-   PERPLEXITY_API_KEY=new-key-here
+   echo -n "NEW_KEY_HERE" | firebase functions:secrets:set PERPLEXITY_API_KEY --data-file -
    ```
-3. **Rebuild and redeploy app:**
+4. Redeploy the function:
    ```bash
-   flutter clean
-   flutter pub get
-   flutter build apk --release --obfuscate --split-debug-info=build/app/outputs/symbols
+   firebase deploy --only functions
    ```
-4. **Revoke old key** in Perplexity dashboard
 
-### Best Practices
-
-✅ **DO:**
-- Store API keys in environment variables
-- Use `.gitignore` for sensitive files
-- Build with obfuscation for releases
-- Monitor API usage for anomalies
-- Set usage limits in Perplexity dashboard
-
-❌ **DON'T:**
-- Commit API keys to git
-- Share API keys in chat/email
-- Hardcode keys in source code
-- Use same key for dev and production
-- Skip obfuscation in release builds
+No app update is required — the key lives entirely server-side.
 
 ---
 
-## 📊 Monitoring & Alerting
+## Security Checklist
 
-### Perplexity Dashboard
-
-Monitor usage at: https://www.perplexity.ai/settings/api
-
-**Set up alerts for:**
-- Unusual spike in requests
-- Reaching usage limits
-- Failed authentication attempts
-
-### App Analytics (Optional)
-
-Consider adding analytics to track:
-- API call frequency
-- Error rates
-- User patterns
-
-**Recommended tools:**
-- Firebase Analytics (free)
-- Sentry (error tracking)
-- PostHog (open source analytics)
+- [x] API key stored in Cloud Secret Manager (not in app)
+- [x] `.env` and `GoogleService-Info.plist` in `.gitignore`
+- [x] Input validation on client and server
+- [x] Prompt injection detection
+- [x] Rate limiting on client
+- [x] Code obfuscation enabled for release builds
+- [x] Error messages sanitized (no internal details exposed)
+- [x] Retry logic with backoff for transient failures
+- [x] No user PII collected or transmitted
 
 ---
 
-## 🚨 Incident Response
-
-If your API key is compromised:
-
-1. **Immediately revoke** the key in Perplexity dashboard
-2. **Generate new key** and update `.env`
-3. **Review usage logs** for unauthorized requests
-4. **Deploy updated app** with new key
-5. **Investigate** how the key was compromised
-6. **Implement additional security** if needed
-
----
-
-## 📝 Security Checklist
-
-Before deploying to production:
-
-- [ ] API keys in environment variables (not hardcoded)
-- [ ] `.env` file in `.gitignore`
-- [ ] Code obfuscation enabled in build
-- [ ] Rate limiting implemented
-- [ ] Input validation active
-- [ ] Error handling robust
-- [ ] Usage monitoring set up
-- [ ] Backend proxy deployed (recommended)
-- [ ] Git history checked for exposed keys
-- [ ] `.env.example` updated (without real keys)
-
----
-
-## 📚 Additional Resources
-
-- [OWASP Mobile Security](https://owasp.org/www-project-mobile-security/)
-- [Flutter Security Best Practices](https://docs.flutter.dev/deployment/obfuscate)
-- [API Key Security Guide](https://cloud.google.com/docs/authentication/api-keys)
-
----
-
-**Last Updated:** 2026-02-12
-**Next Review:** Before production release
+**Last Updated:** 2026-03-01

@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:home_widget/home_widget.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui';
-import 'services/perplexity_service.dart';
+import 'services/perplexity_firebase_service.dart';
 import 'services/health_kit_service.dart';
 import 'models/food_item.dart';
 import 'screens/settings_page.dart';
@@ -23,8 +24,10 @@ Future<void> main() async {
   // Ensure Flutter is initialized
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Load environment variables
-  await dotenv.load(fileName: ".env");
+  // Initialize Firebase
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   // Initialize HomeWidget for iOS widget data sharing
   HomeWidget.setAppGroupId(StorageKeys.appGroupId);
@@ -184,7 +187,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   final TextEditingController _foodController = TextEditingController();
   final FocusNode _foodFocusNode = FocusNode();
   final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
-  final PerplexityService _perplexityService = PerplexityService();
+  final PerplexityFirebaseService _perplexityService = PerplexityFirebaseService();
   final HealthKitService _healthKitService = HealthKitService();
 
   List<FoodItem> foodItems = [];
