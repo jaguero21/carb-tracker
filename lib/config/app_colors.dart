@@ -6,13 +6,24 @@ class AppColors {
   AppColors._(); // Private constructor to prevent instantiation
 
   // Background Colors
-  static const Color cream = Color(0xFFFAF7F2);
+  static const Color cream = Color(0xFFF5F1EB);
   static const Color warmWhite = Color(0xFFFFFEF9);
 
   // Primary Brand Colors - Sage
-  static const Color sage = Color(0xFF7D9B76);
-  static const Color sageLight = Color(0xFFA8C2A1);
+  static const Color sage = Color(0xFF8FA088);
+  static const Color sageLight = Color(0xFFA5B59E);
   static const Color sageDark = Color(0xFF4D6B47);
+
+  // Input / Card Colors
+  static const Color inputFill = Color(0xFFF9FAFB);
+  static const Color cardWhite = Color(0xFFFFFFFF);
+
+  // Primary Gradient
+  static const LinearGradient primaryGradient = LinearGradient(
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+    colors: [sage, sageLight],
+  );
 
   // Accent Colors
   static const Color terracotta = Color(0xFFD4714E);
@@ -79,17 +90,17 @@ class AppColors {
 /// Material color swatch for sage (primary color)
 /// Used by ThemeData for consistent Material Design integration
 const MaterialColor sageSwatch = MaterialColor(
-  0xFF7D9B76, // Base sage color
+  0xFF8FA088, // Base sage color
   <int, Color>{
-    50: Color(0xFFF0F4EF),
-    100: Color(0xFFDAE4D7),
-    200: Color(0xFFC1D3BD),
-    300: Color(0xFFA8C2A1),
-    400: Color(0xFF95B58C),
-    500: Color(0xFF7D9B76), // Primary sage
-    600: Color(0xFF6F8A69),
-    700: Color(0xFF5E765D),
-    800: Color(0xFF4D6B47),
+    50: Color(0xFFF2F4F1),
+    100: Color(0xFFDFE5DC),
+    200: Color(0xFFC9D3C5),
+    300: Color(0xFFA5B59E),
+    400: Color(0xFF9AAB93),
+    500: Color(0xFF8FA088), // Primary sage
+    600: Color(0xFF7E8F78),
+    700: Color(0xFF6B7B65),
+    800: Color(0xFF586853),
     900: Color(0xFF3A5235),
   },
 );
