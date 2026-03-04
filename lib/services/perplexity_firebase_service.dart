@@ -1,4 +1,5 @@
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/foundation.dart';
 import '../models/food_item.dart';
 import '../utils/input_validation.dart';
 
@@ -22,7 +23,7 @@ class PerplexityFirebaseService {
     try {
       final callable = _functions.httpsCallable(
         'getMultipleCarbCounts',
-        options: HttpsCallableOptions(timeout: const Duration(seconds: 45)),
+        options: HttpsCallableOptions(timeout: const Duration(seconds: 60)),
       );
 
       final result = await callable.call<Map<String, dynamic>>(
@@ -30,20 +31,36 @@ class PerplexityFirebaseService {
       );
 
       final data = result.data;
+
+      if (data['items'] == null) {
+        debugPrint('Firebase response missing items: $data');
+        throw Exception('No results returned. Please try again.');
+      }
+
       final items = data['items'] as List<dynamic>;
       final citations = data['citations'] != null
           ? List<String>.from(data['citations'])
           : <String>[];
 
+      if (items.isEmpty) {
+        throw Exception('No food items found. Please try a different description.');
+      }
+
       return items.map((item) {
+        final carbsRaw = item['carbs'];
+        final carbs = carbsRaw is num
+            ? carbsRaw.toDouble()
+            : double.tryParse(carbsRaw.toString()) ?? 0.0;
+
         return FoodItem(
-          name: item['name'] as String,
-          carbs: (item['carbs'] as num).toDouble(),
+          name: (item['name'] as String?) ?? 'Unknown',
+          carbs: carbs,
           details: item['details'] as String?,
           citations: citations,
         );
       }).toList();
     } on FirebaseFunctionsException catch (e) {
+      debugPrint('FirebaseFunctionsException: code=${e.code} message=${e.message}');
       switch (e.code) {
         case 'invalid-argument':
           throw Exception('Invalid food item. Please try again.');
@@ -51,10 +68,13 @@ class PerplexityFirebaseService {
           throw Exception('API rate limit exceeded. Please try again later.');
         case 'unauthenticated':
           throw Exception('Authentication error. Please restart the app.');
+        case 'deadline-exceeded':
+          throw Exception('Request timed out. Please try again.');
         default:
-          throw Exception('Failed to get carb count: ${e.message}');
+          throw Exception('Failed to get carb count. Please try again.');
       }
     } catch (e) {
+      debugPrint('PerplexityFirebaseService error: $e');
       if (e.toString().contains('Exception:')) rethrow;
       throw Exception('Network error. Please check your connection.');
     }
