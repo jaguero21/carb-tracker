@@ -65,5 +65,8 @@ lib/config/api_keys.dart
 # Firebase
 ios/Runner/GoogleService-Info.plist
 
+# Design assets
+ux/
+
 # Claude Code
 .claude/settings.local.json

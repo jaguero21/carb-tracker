@@ -4,7 +4,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'dart:io';
 import '../config/app_colors.dart';
-import '../config/app_icons.dart';
 import '../config/storage_keys.dart';
 import '../models/food_item.dart';
 import '../services/health_kit_service.dart';
@@ -254,7 +253,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildFoodItemCard(String name, String subtitle, double carbs, bool isDark) {
+  Widget _buildFoodItemCard(String name, String subtitle, double carbs, bool isDark, {FoodCategory? category}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(16),
@@ -276,17 +275,14 @@ class _SettingsPageState extends State<SettingsPage> {
             height: 44,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  AppColors.sage.withValues(alpha: 0.2),
-                  AppColors.sageLight.withValues(alpha: 0.2),
-                ],
-              ),
+              color: (category?.color ?? AppColors.sage).withValues(alpha: 0.15),
             ),
             child: Center(
-              child: AppIcons.nutritionIcon(size: 20, color: AppColors.sage),
+              child: Icon(
+                category?.icon ?? Icons.restaurant,
+                size: 20,
+                color: category?.color ?? AppColors.sage,
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -495,7 +491,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     color: AppColors.terracotta,
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: AppIcons.deleteIcon(size: 28, color: Colors.white),
+                  child: Icon(Icons.delete, size: 28, color: Colors.white),
                 ),
                 child: GestureDetector(
                   onTap: widget.onAddFood != null
@@ -517,6 +513,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     '${item.carbs.toStringAsFixed(1)}g per serving',
                     item.carbs,
                     isDark,
+                    category: item.category,
                   ),
                 ),
               );
@@ -678,12 +675,16 @@ class _SettingsPageState extends State<SettingsPage> {
                 ],
               ),
             ),
-            ...entries.map((entry) => _buildFoodItemCard(
-                  entry['name'] as String? ?? 'Unknown',
-                  _formatTime(entry['time'] as DateTime),
-                  (entry['carbs'] as num?)?.toDouble() ?? 0.0,
-                  isDark,
-                )),
+            ...entries.map((entry) {
+              final time = entry['time'] as DateTime;
+              return _buildFoodItemCard(
+                entry['name'] as String? ?? 'Unknown',
+                _formatTime(time),
+                (entry['carbs'] as num?)?.toDouble() ?? 0.0,
+                isDark,
+                category: FoodCategory.fromTime(time),
+              );
+            }),
           ],
         );
       },

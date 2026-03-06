@@ -13,7 +13,6 @@ import 'services/health_kit_service.dart';
 import 'models/food_item.dart';
 import 'screens/settings_page.dart';
 import 'config/app_colors.dart';
-import 'config/app_icons.dart';
 import 'config/storage_keys.dart';
 import 'utils/input_validation.dart';
 
@@ -648,19 +647,13 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
               height: 44,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    AppColors.sage.withValues(alpha: 0.2),
-                    AppColors.sageLight.withValues(alpha: 0.2),
-                  ],
-                ),
+                color: item.category.color.withValues(alpha: 0.15),
               ),
               child: Center(
-                child: AppIcons.nutritionIcon(
+                child: Icon(
+                  item.category.icon,
                   size: 20,
-                  color: AppColors.sage,
+                  color: item.category.color,
                 ),
               ),
             ),
@@ -820,7 +813,8 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                   const Spacer(),
                   _buildNavIcon(
                     page: 0,
-                    icon: AppIcons.nutritionIcon(
+                    icon: Icon(
+                      Icons.restaurant,
                       size: 20,
                       color: _currentPage == 0
                           ? (isDark ? AppColors.darkBackground : Colors.white)
@@ -831,7 +825,8 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                   const SizedBox(width: 8),
                   _buildNavIcon(
                     page: 1,
-                    icon: AppIcons.settingsIcon(
+                    icon: Icon(
+                      Icons.settings,
                       size: 20,
                       color: _currentPage == 1
                           ? (isDark ? AppColors.darkBackground : Colors.white)
@@ -1171,7 +1166,8 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                                 color: AppColors.sage,
                                 borderRadius: BorderRadius.circular(16),
                               ),
-                              child: AppIcons.bookmarkIcon(
+                              child: Icon(
+                                Icons.bookmark,
                                 size: 28,
                                 color: Colors.white,
                               ),
@@ -1183,7 +1179,8 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                                 color: AppColors.terracotta,
                                 borderRadius: BorderRadius.circular(16),
                               ),
-                              child: AppIcons.deleteIcon(
+                              child: Icon(
+                                Icons.delete,
                                 size: 28,
                                 color: Colors.white,
                               ),
