@@ -4,10 +4,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'dart:io';
 import '../config/app_colors.dart';
-import '../config/app_icons.dart';
 import '../config/storage_keys.dart';
 import '../models/food_item.dart';
 import '../services/health_kit_service.dart';
+import '../utils/date_format.dart';
+import '../widgets/food_item_card.dart';
 
 class SettingsResult {
   final double? dailyCarbGoal;
@@ -180,13 +181,6 @@ class _SettingsPageState extends State<SettingsPage> {
     return '${months[date.month - 1]} ${date.day}';
   }
 
-  String _formatTime(DateTime dt) {
-    final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
-    final minute = dt.minute.toString().padLeft(2, '0');
-    final period = dt.hour < 12 ? 'AM' : 'PM';
-    return '$hour:$minute $period';
-  }
-
   // ── Goals ──
 
   double? _parseGoal() {
@@ -254,92 +248,6 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildFoodItemCard(String name, String subtitle, double carbs, bool isDark) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurface : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.06),
-            blurRadius: 3,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  AppColors.sage.withValues(alpha: 0.2),
-                  AppColors.sageLight.withValues(alpha: 0.2),
-                ],
-              ),
-            ),
-            child: Center(
-              child: AppIcons.nutritionIcon(size: 20, color: AppColors.sage),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          RichText(
-            text: TextSpan(
-              children: [
-                TextSpan(
-                  text: carbs.toStringAsFixed(1),
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                ),
-                TextSpan(
-                  text: 'g',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w400,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   // ── Build ──
 
@@ -495,7 +403,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     color: AppColors.terracotta,
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: AppIcons.deleteIcon(size: 28, color: Colors.white),
+                  child: Icon(Icons.delete, size: 28, color: Colors.white),
                 ),
                 child: GestureDetector(
                   onTap: widget.onAddFood != null
@@ -512,11 +420,11 @@ class _SettingsPageState extends State<SettingsPage> {
                           );
                         }
                       : null,
-                  child: _buildFoodItemCard(
-                    item.name,
-                    '${item.carbs.toStringAsFixed(1)}g per serving',
-                    item.carbs,
-                    isDark,
+                  child: FoodItemCard(
+                    name: item.name,
+                    subtitle: '${item.carbs.toStringAsFixed(1)}g per serving',
+                    carbs: item.carbs,
+                    category: item.category,
                   ),
                 ),
               );
@@ -678,12 +586,15 @@ class _SettingsPageState extends State<SettingsPage> {
                 ],
               ),
             ),
-            ...entries.map((entry) => _buildFoodItemCard(
-                  entry['name'] as String? ?? 'Unknown',
-                  _formatTime(entry['time'] as DateTime),
-                  (entry['carbs'] as num?)?.toDouble() ?? 0.0,
-                  isDark,
-                )),
+            ...entries.map((entry) {
+              final time = entry['time'] as DateTime;
+              return FoodItemCard(
+                name: entry['name'] as String? ?? 'Unknown',
+                subtitle: formatTime(time),
+                carbs: (entry['carbs'] as num?)?.toDouble() ?? 0.0,
+                category: FoodCategory.fromTime(time),
+              );
+            }),
           ],
         );
       },

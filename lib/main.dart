@@ -13,9 +13,11 @@ import 'services/health_kit_service.dart';
 import 'models/food_item.dart';
 import 'screens/settings_page.dart';
 import 'config/app_colors.dart';
-import 'config/app_icons.dart';
+import 'config/app_theme.dart';
 import 'config/storage_keys.dart';
+import 'utils/date_format.dart';
 import 'utils/input_validation.dart';
+import 'widgets/food_item_card.dart';
 
 Future<void> main() async {
   // Ensure Flutter is initialized
@@ -32,134 +34,6 @@ Future<void> main() async {
   runApp(const CarbTrackerApp());
 }
 
-ThemeData _lightTheme() {
-  return ThemeData(
-    primarySwatch: sageSwatch,
-    primaryColor: AppColors.sage,
-    scaffoldBackgroundColor: AppColors.cream,
-    useMaterial3: true,
-    colorScheme: ColorScheme.light(
-      primary: AppColors.sage,
-      secondary: AppColors.honey,
-      tertiary: AppColors.terracotta,
-      surface: AppColors.warmWhite,
-      error: AppColors.terracotta,
-      onPrimary: Colors.white,
-      onSecondary: AppColors.ink,
-      onSurface: AppColors.ink,
-      onError: Colors.white,
-      onSurfaceVariant: AppColors.muted,
-      outlineVariant: AppColors.border,
-      outline: AppColors.borderMedium,
-    ),
-    appBarTheme: const AppBarTheme(
-      backgroundColor: AppColors.cream,
-      foregroundColor: AppColors.ink,
-      elevation: 0,
-      systemOverlayStyle: SystemUiOverlayStyle.dark,
-    ),
-    elevatedButtonTheme: ElevatedButtonThemeData(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.sage,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-      ),
-    ),
-    textTheme: const TextTheme(
-      bodyLarge: TextStyle(color: AppColors.ink),
-      bodyMedium: TextStyle(color: AppColors.charcoal),
-      bodySmall: TextStyle(color: AppColors.muted),
-    ),
-    inputDecorationTheme: InputDecorationTheme(
-      filled: true,
-      fillColor: AppColors.inputFill,
-      border: OutlineInputBorder(
-        borderSide: BorderSide.none,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderSide: BorderSide.none,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderSide: BorderSide(color: AppColors.sage.withValues(alpha: 0.3), width: 2),
-        borderRadius: BorderRadius.circular(16),
-      ),
-    ),
-    snackBarTheme: SnackBarThemeData(
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    ),
-  );
-}
-
-ThemeData _darkTheme() {
-  return ThemeData(
-    primarySwatch: sageSwatch,
-    primaryColor: AppColors.sage,
-    scaffoldBackgroundColor: AppColors.darkBackground,
-    useMaterial3: true,
-    colorScheme: ColorScheme.dark(
-      primary: AppColors.sage,
-      secondary: AppColors.honey,
-      tertiary: AppColors.terracotta,
-      surface: AppColors.darkSurface,
-      error: AppColors.terracotta,
-      onPrimary: Colors.white,
-      onSecondary: AppColors.lightInk,
-      onSurface: AppColors.lightInk,
-      onError: Colors.white,
-      onSurfaceVariant: AppColors.darkMuted,
-      outlineVariant: AppColors.darkBorder,
-      outline: AppColors.darkBorderMedium,
-    ),
-    appBarTheme: const AppBarTheme(
-      backgroundColor: AppColors.darkBackground,
-      foregroundColor: AppColors.lightInk,
-      elevation: 0,
-      systemOverlayStyle: SystemUiOverlayStyle.light,
-    ),
-    elevatedButtonTheme: ElevatedButtonThemeData(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.sage,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-      ),
-    ),
-    textTheme: const TextTheme(
-      bodyLarge: TextStyle(color: AppColors.lightInk),
-      bodyMedium: TextStyle(color: AppColors.lightCharcoal),
-      bodySmall: TextStyle(color: AppColors.darkMuted),
-    ),
-    inputDecorationTheme: InputDecorationTheme(
-      filled: true,
-      fillColor: AppColors.darkSurface,
-      border: OutlineInputBorder(
-        borderSide: BorderSide.none,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderSide: BorderSide.none,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderSide: BorderSide(color: AppColors.sage.withValues(alpha: 0.3), width: 2),
-        borderRadius: BorderRadius.circular(16),
-      ),
-    ),
-    snackBarTheme: SnackBarThemeData(
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    ),
-  );
-}
-
 class CarbTrackerApp extends StatelessWidget {
   const CarbTrackerApp({super.key});
 
@@ -167,8 +41,8 @@ class CarbTrackerApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'CarpeCarb',
-      theme: _lightTheme(),
-      darkTheme: _darkTheme(),
+      theme: lightTheme(),
+      darkTheme: darkTheme(),
       themeMode: ThemeMode.system,
       home: const CarbTrackerHome(),
     );
@@ -192,7 +66,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   final HealthKitService _healthKitService = HealthKitService();
 
   List<FoodItem> foodItems = [];
-  double totalCarbs = 0.0;
+  double get totalCarbs => foodItems.fold(0.0, (sum, item) => sum + item.carbs);
   bool isLoading = false;
   bool showingDailyTotal = false;
   double? dailyCarbGoal;
@@ -257,18 +131,13 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       await HomeWidget.saveWidgetData<double>(StorageKeys.widgetLastFoodCarbs, 0.0);
       await HomeWidget.updateWidget(iOSName: StorageKeys.widgetName);
       setState(() {
-        totalCarbs = 0.0;
         foodItems = [];
         dailyCarbGoal = savedGoal;
       });
       return;
     }
 
-    // Same day — restore food list and total
-    final savedTotal = prefs.getDouble(StorageKeys.totalCarbs) ?? 0.0;
-    final widgetTotal = await HomeWidget.getWidgetData<double>(StorageKeys.widgetTotalCarbs) ?? 0.0;
-    final effectiveTotal = widgetTotal > savedTotal ? widgetTotal : savedTotal;
-
+    // Same day — restore food list
     final itemsJson = prefs.getString(StorageKeys.foodItems);
     List<FoodItem> loadedItems = [];
     if (itemsJson != null) {
@@ -281,7 +150,6 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     }
 
     setState(() {
-      totalCarbs = effectiveTotal;
       foodItems = loadedItems;
       dailyCarbGoal = savedGoal;
     });
@@ -394,9 +262,6 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       final items = await _perplexityService.getMultipleCarbCounts(foodText);
 
       setState(() {
-        for (final item in items) {
-          totalCarbs += item.carbs;
-        }
         isLoading = false;
         showingDailyTotal = false;
         _foodController.clear();
@@ -451,7 +316,6 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     final snapshot = List<FoodItem>.from(foodItems);
     setState(() {
       foodItems.clear();
-      totalCarbs = 0.0;
     });
     for (int i = snapshot.length - 1; i >= 0; i--) {
       final item = snapshot[i];
@@ -472,7 +336,6 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   void removeItem(int index) {
     final removedItem = foodItems[index];
     setState(() {
-      totalCarbs -= removedItem.carbs;
       foodItems.removeAt(index);
     });
     _listKey.currentState?.removeItem(
@@ -496,7 +359,6 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
             onPressed: () {
               setState(() {
                 foodItems.insert(index.clamp(0, foodItems.length), removedItem);
-                totalCarbs += removedItem.carbs;
               });
               _listKey.currentState?.insertItem(
                 index.clamp(0, foodItems.length - 1),
@@ -615,112 +477,19 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     _updateWidget();
   }
 
-  String _formatTime(DateTime dt) {
-    final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
-    final minute = dt.minute.toString().padLeft(2, '0');
-    final period = dt.hour < 12 ? 'AM' : 'PM';
-    return '$hour:$minute $period';
-  }
-
   Widget _buildFoodTile(FoodItem item) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return GestureDetector(
+    return FoodItemCard(
+      name: item.name,
+      subtitle: formatTime(item.loggedAt),
+      carbs: item.carbs,
+      category: item.category,
       onLongPress: () => _showFoodDetails(item),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.darkSurface : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.06),
-              blurRadius: 3,
-              offset: const Offset(0, 1),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            // Circular icon badge
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    AppColors.sage.withValues(alpha: 0.2),
-                    AppColors.sageLight.withValues(alpha: 0.2),
-                  ],
-                ),
-              ),
-              child: Center(
-                child: AppIcons.nutritionIcon(
-                  size: 20,
-                  color: AppColors.sage,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.name,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    _formatTime(item.loggedAt),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            RichText(
-              text: TextSpan(
-                children: [
-                  TextSpan(
-                    text: item.carbs.toStringAsFixed(1),
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                  ),
-                  TextSpan(
-                    text: 'g',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
   void _addSavedFood(FoodItem item) {
     setState(() {
       foodItems.insert(0, item);
-      totalCarbs += item.carbs;
       showingDailyTotal = false;
     });
     _listKey.currentState?.insertItem(0, duration: const Duration(milliseconds: 400));
@@ -820,7 +589,8 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                   const Spacer(),
                   _buildNavIcon(
                     page: 0,
-                    icon: AppIcons.nutritionIcon(
+                    icon: Icon(
+                      Icons.restaurant,
                       size: 20,
                       color: _currentPage == 0
                           ? (isDark ? AppColors.darkBackground : Colors.white)
@@ -831,7 +601,8 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                   const SizedBox(width: 8),
                   _buildNavIcon(
                     page: 1,
-                    icon: AppIcons.settingsIcon(
+                    icon: Icon(
+                      Icons.settings,
                       size: 20,
                       color: _currentPage == 1
                           ? (isDark ? AppColors.darkBackground : Colors.white)
@@ -1171,7 +942,8 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                                 color: AppColors.sage,
                                 borderRadius: BorderRadius.circular(16),
                               ),
-                              child: AppIcons.bookmarkIcon(
+                              child: Icon(
+                                Icons.bookmark,
                                 size: 28,
                                 color: Colors.white,
                               ),
@@ -1183,7 +955,8 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                                 color: AppColors.terracotta,
                                 borderRadius: BorderRadius.circular(16),
                               ),
-                              child: AppIcons.deleteIcon(
+                              child: Icon(
+                                Icons.delete,
                                 size: 28,
                                 color: Colors.white,
                               ),
