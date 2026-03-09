@@ -25,4 +25,14 @@ class StorageKeys {
 
   // iOS widget name
   static const String widgetName = 'CarbWiseWidget';
+
+  // Premium feature keys
+  static const String isPremium = 'is_premium';
+  static const String premiumManualEntry = 'premium_manual_entry';
+  static const String premiumHealthSync = 'premium_health_sync';
+  static const String premiumCloudSync = 'premium_cloud_sync';
+  static const String premiumMacros = 'premium_macros';
+
+  // Cloud sync
+  static const String cloudLastModified = 'cloud_last_modified';
 }
