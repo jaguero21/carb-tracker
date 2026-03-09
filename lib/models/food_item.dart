@@ -66,12 +66,14 @@ class FoodItem {
   final List<String> citations;
   final DateTime loggedAt;
   final FoodCategory category;
+  final bool isManualEntry;
 
   FoodItem({
     required this.name,
     required this.carbs,
     this.details,
     this.citations = const [],
+    this.isManualEntry = false,
     DateTime? loggedAt,
     FoodCategory? category,
   })  : loggedAt = loggedAt ?? DateTime.now(),
@@ -85,6 +87,7 @@ class FoodItem {
       'category': category.name,
       if (details != null) 'details': details,
       if (citations.isNotEmpty) 'citations': citations,
+      if (isManualEntry) 'isManualEntry': true,
     };
   }
 
@@ -110,6 +113,7 @@ class FoodItem {
           ? List<String>.from(json['citations'])
           : const [],
       loggedAt: loggedAt,
+      isManualEntry: json['isManualEntry'] as bool? ?? false,
       category: json['category'] != null
           ? FoodCategory.fromString(json['category'] as String)
           : null,

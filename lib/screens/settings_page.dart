@@ -7,6 +7,8 @@ import '../config/app_colors.dart';
 import '../config/storage_keys.dart';
 import '../models/food_item.dart';
 import '../services/health_kit_service.dart';
+import '../services/premium_service.dart';
+import '../services/cloud_sync_service.dart';
 import '../utils/date_format.dart';
 import '../widgets/food_item_card.dart';
 
@@ -23,6 +25,8 @@ class SettingsPage extends StatefulWidget {
   final void Function(FoodItem)? onAddFood;
   final HealthKitService? healthKitService;
   final void Function(SettingsResult)? onSettingsChanged;
+  final PremiumService? premiumService;
+  final CloudSyncService? cloudSyncService;
 
   const SettingsPage({
     super.key,
@@ -31,6 +35,8 @@ class SettingsPage extends StatefulWidget {
     this.onAddFood,
     this.healthKitService,
     this.onSettingsChanged,
+    this.premiumService,
+    this.cloudSyncService,
   });
 
   @override
@@ -54,8 +60,8 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _isHistoryLoading = true;
   bool _hasPermission = true;
 
-  static const _tabIcons = [Icons.bookmark_border, Icons.history, Icons.adjust];
-  static const _tabLabels = ['Favorites', 'History', 'Goals'];
+  static const _tabIcons = [Icons.bookmark_border, Icons.history, Icons.adjust, Icons.workspace_premium];
+  static const _tabLabels = ['Favorites', 'History', 'Goals', 'Premium'];
 
   @override
   void initState() {
@@ -322,6 +328,7 @@ class _SettingsPageState extends State<SettingsPage> {
               _buildFavoritesTab(colorScheme, isDark),
               _buildHistoryTab(colorScheme, isDark),
               _buildGoalsTab(colorScheme, isDark),
+              _buildPremiumTab(colorScheme, isDark),
             ],
           ),
         ),
@@ -787,6 +794,166 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ),
           ),
+        ),
+      ],
+    );
+  }
+
+  // ── Premium Tab ──
+
+  Widget _buildPremiumFeatureCard({
+    required IconData icon,
+    required String title,
+    required String description,
+    required bool value,
+    required bool enabled,
+    String? badge,
+    required ValueChanged<bool> onChanged,
+    required bool isDark,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
+            blurRadius: 6,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          _buildIconBadge(icon),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: enabled
+                            ? Theme.of(context).colorScheme.onSurface
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    if (badge != null) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.honey.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          badge,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.honey,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch.adaptive(
+            value: value,
+            onChanged: enabled ? onChanged : null,
+            activeTrackColor: AppColors.sage,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPremiumTab(ColorScheme colorScheme, bool isDark) {
+    final ps = widget.premiumService;
+
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+      children: [
+        _buildPremiumFeatureCard(
+          icon: Icons.edit_note,
+          title: 'Manual Entry',
+          description: 'Enter food name and carb count directly',
+          value: ps?.isManualEntryEnabled ?? false,
+          enabled: ps?.isPremium ?? false,
+          isDark: isDark,
+          onChanged: (v) async {
+            await ps?.setFeatureEnabled(StorageKeys.premiumManualEntry, v);
+            setState(() {});
+          },
+        ),
+        _buildPremiumFeatureCard(
+          icon: Icons.favorite_border,
+          title: 'Apple Health Sync',
+          description: 'Sync carb data with Apple Health',
+          value: ps?.isHealthSyncEnabled ?? false,
+          enabled: ps?.isPremium ?? false,
+          isDark: isDark,
+          onChanged: (v) async {
+            await ps?.setFeatureEnabled(StorageKeys.premiumHealthSync, v);
+            setState(() {});
+          },
+        ),
+        _buildPremiumFeatureCard(
+          icon: Icons.cloud_outlined,
+          title: 'Cloud Sync',
+          description: 'Sync data across your devices via iCloud',
+          value: ps?.isCloudSyncEnabled ?? false,
+          enabled: ps?.isPremium ?? false,
+          isDark: isDark,
+          onChanged: (v) async {
+            if (v) {
+              final available = await widget.cloudSyncService?.isAvailable() ?? false;
+              if (!available && mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Sign into iCloud in Settings to enable sync'),
+                    duration: Duration(seconds: 3),
+                  ),
+                );
+                return;
+              }
+            }
+            await ps?.setFeatureEnabled(StorageKeys.premiumCloudSync, v);
+            if (v) {
+              await widget.cloudSyncService?.pushToCloud();
+            } else {
+              await widget.cloudSyncService?.stopListening();
+            }
+            setState(() {});
+          },
+        ),
+        _buildPremiumFeatureCard(
+          icon: Icons.bar_chart,
+          title: 'Macro Nutrients',
+          description: 'Track protein, fat, fiber and more',
+          value: false,
+          enabled: false,
+          badge: 'Coming soon',
+          isDark: isDark,
+          onChanged: (_) {},
         ),
       ],
     );

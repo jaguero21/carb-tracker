@@ -4,7 +4,10 @@ import '../models/food_item.dart';
 import '../utils/input_validation.dart';
 
 class PerplexityFirebaseService {
-  final FirebaseFunctions _functions = FirebaseFunctions.instance;
+  FirebaseFunctions? _functions;
+
+  FirebaseFunctions get _firebaseFunctions =>
+      _functions ??= FirebaseFunctions.instance;
 
   // Rate limiting to prevent UI-level spamming
   static DateTime? _lastRequestTime;
@@ -21,7 +24,7 @@ class PerplexityFirebaseService {
     }
 
     try {
-      final callable = _functions.httpsCallable(
+      final callable = _firebaseFunctions.httpsCallable(
         'getMultipleCarbCounts',
         options: HttpsCallableOptions(timeout: const Duration(seconds: 60)),
       );
@@ -43,7 +46,8 @@ class PerplexityFirebaseService {
           : <String>[];
 
       if (items.isEmpty) {
-        throw Exception('No food items found. Please try a different description.');
+        throw Exception(
+            'No food items found. Please try a different description.');
       }
 
       return items.map((item) {
@@ -60,7 +64,8 @@ class PerplexityFirebaseService {
         );
       }).toList();
     } on FirebaseFunctionsException catch (e) {
-      debugPrint('FirebaseFunctionsException: code=${e.code} message=${e.message}');
+      debugPrint(
+          'FirebaseFunctionsException: code=${e.code} message=${e.message}');
       switch (e.code) {
         case 'invalid-argument':
           throw Exception('Invalid food item. Please try again.');
@@ -83,8 +88,7 @@ class PerplexityFirebaseService {
   /// Enforces rate limiting between API requests
   Future<void> _enforceRateLimit() async {
     if (_lastRequestTime != null) {
-      final timeSinceLastRequest =
-          DateTime.now().difference(_lastRequestTime!);
+      final timeSinceLastRequest = DateTime.now().difference(_lastRequestTime!);
       if (timeSinceLastRequest < _minRequestInterval) {
         final waitTime = _minRequestInterval - timeSinceLastRequest;
         await Future.delayed(waitTime);

@@ -10,6 +10,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'services/perplexity_firebase_service.dart';
 import 'services/health_kit_service.dart';
+import 'services/premium_service.dart';
+import 'services/cloud_sync_service.dart';
 import 'models/food_item.dart';
 import 'screens/settings_page.dart';
 import 'config/app_colors.dart';
@@ -60,10 +62,15 @@ class CarbTrackerHome extends StatefulWidget {
 class CarbTrackerHomeState extends State<CarbTrackerHome>
     with WidgetsBindingObserver {
   final TextEditingController _foodController = TextEditingController();
+  final TextEditingController _carbController = TextEditingController();
   final FocusNode _foodFocusNode = FocusNode();
   final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
-  final PerplexityFirebaseService _perplexityService = PerplexityFirebaseService();
+  final PerplexityFirebaseService _perplexityService =
+      PerplexityFirebaseService();
   final HealthKitService _healthKitService = HealthKitService();
+  final PremiumService _premiumService = PremiumService();
+  final CloudSyncService _cloudSyncService = CloudSyncService();
+  bool _isManualEntryMode = false;
 
   List<FoodItem> foodItems = [];
   double get totalCarbs => foodItems.fold(0.0, (sum, item) => sum + item.carbs);
@@ -77,13 +84,32 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _premiumService.init().then((_) {
+      if (mounted) setState(() {});
+      if (Platform.isIOS && _premiumService.isHealthSyncEnabled) {
+        _healthKitService.requestAuthorization();
+      }
+      _initCloudSync();
+    });
     _loadSavedData();
     _checkWidgetLaunch();
-    if (Platform.isIOS) _healthKitService.requestAuthorization();
     // Auto-open keyboard so users can start typing immediately
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _foodFocusNode.requestFocus();
     });
+  }
+
+  Future<void> _initCloudSync() async {
+    if (!_premiumService.isCloudSyncEnabled) return;
+    await _cloudSyncService.startListening(_onRemoteCloudChange);
+    final pulled = await _cloudSyncService.pullFromCloud();
+    if (pulled != null && mounted) {
+      _loadSavedData();
+    }
+  }
+
+  void _onRemoteCloudChange() {
+    if (mounted) _loadSavedData();
   }
 
   @override
@@ -91,6 +117,13 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     super.didChangeAppLifecycleState(state);
     if (state == AppLifecycleState.resumed) {
       _importSiriLoggedItems();
+      if (_premiumService.isCloudSyncEnabled) {
+        _cloudSyncService.pullFromCloud().then((pulled) {
+          if (pulled != null && mounted) _loadSavedData();
+        });
+      } else {
+        _cloudSyncService.stopListening();
+      }
     }
   }
 
@@ -104,7 +137,8 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   }
 
   Future<void> _updateWidget() async {
-    await HomeWidget.saveWidgetData<double>(StorageKeys.widgetTotalCarbs, totalCarbs);
+    await HomeWidget.saveWidgetData<double>(
+        StorageKeys.widgetTotalCarbs, totalCarbs);
     await HomeWidget.saveWidgetData<String>(
       StorageKeys.widgetLastFoodName,
       foodItems.isNotEmpty ? foodItems.first.name : '',
@@ -113,7 +147,8 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       StorageKeys.widgetLastFoodCarbs,
       foodItems.isNotEmpty ? foodItems.first.carbs : 0.0,
     );
-    await HomeWidget.saveWidgetData<double>(StorageKeys.widgetDailyCarbGoal, dailyCarbGoal ?? 0.0);
+    await HomeWidget.saveWidgetData<double>(
+        StorageKeys.widgetDailyCarbGoal, dailyCarbGoal ?? 0.0);
     await HomeWidget.updateWidget(iOSName: StorageKeys.widgetName);
   }
 
@@ -130,9 +165,12 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       await prefs.remove(StorageKeys.foodItems);
       await prefs.remove(StorageKeys.lastSaveDate);
       await prefs.setDouble(StorageKeys.totalCarbs, 0.0);
-      await HomeWidget.saveWidgetData<double>(StorageKeys.widgetTotalCarbs, 0.0);
-      await HomeWidget.saveWidgetData<String>(StorageKeys.widgetLastFoodName, '');
-      await HomeWidget.saveWidgetData<double>(StorageKeys.widgetLastFoodCarbs, 0.0);
+      await HomeWidget.saveWidgetData<double>(
+          StorageKeys.widgetTotalCarbs, 0.0);
+      await HomeWidget.saveWidgetData<String>(
+          StorageKeys.widgetLastFoodName, '');
+      await HomeWidget.saveWidgetData<double>(
+          StorageKeys.widgetLastFoodCarbs, 0.0);
       await HomeWidget.updateWidget(iOSName: StorageKeys.widgetName);
       setState(() {
         foodItems = [];
@@ -147,7 +185,9 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     if (itemsJson != null) {
       try {
         final List<dynamic> decoded = jsonDecode(itemsJson);
-        loadedItems = decoded.map((item) => FoodItem.fromJson(item as Map<String, dynamic>)).toList();
+        loadedItems = decoded
+            .map((item) => FoodItem.fromJson(item as Map<String, dynamic>))
+            .toList();
       } catch (e) {
         debugPrint('Failed to decode saved food_items: $e');
       }
@@ -163,7 +203,8 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   }
 
   Future<void> _importSiriLoggedItems() async {
-    final siriItemsJson = await HomeWidget.getWidgetData<String>(StorageKeys.widgetSiriLoggedItems);
+    final siriItemsJson = await HomeWidget.getWidgetData<String>(
+        StorageKeys.widgetSiriLoggedItems);
     if (siriItemsJson == null) return;
 
     try {
@@ -193,16 +234,20 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
         setState(() {
           foodItems.insert(0, foodItem);
         });
-        _listKey.currentState?.insertItem(0, duration: const Duration(milliseconds: 400));
+        _listKey.currentState
+            ?.insertItem(0, duration: const Duration(milliseconds: 400));
       }
 
       // Clear the Siri buffer so we don't re-import on next launch
-      await HomeWidget.saveWidgetData<String?>(StorageKeys.widgetSiriLoggedItems, null);
+      await HomeWidget.saveWidgetData<String?>(
+          StorageKeys.widgetSiriLoggedItems, null);
       await _saveData();
 
       // Sync Siri-logged items to HealthKit
-      for (final foodItem in newItems) {
-        _healthKitService.writeFoodItem(foodItem);
+      if (_premiumService.isHealthSyncEnabled) {
+        for (final foodItem in newItems) {
+          _healthKitService.writeFoodItem(foodItem);
+        }
       }
     } catch (e) {
       debugPrint('Failed to import Siri logged items: $e');
@@ -220,6 +265,11 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     final itemsJson = jsonEncode(foodItems.map((f) => f.toJson()).toList());
     await prefs.setString(StorageKeys.foodItems, itemsJson);
     await prefs.setString(StorageKeys.lastSaveDate, _todayString());
+
+    // Push to iCloud if cloud sync is enabled
+    if (_premiumService.isCloudSyncEnabled) {
+      _cloudSyncService.pushToCloud();
+    }
   }
 
   String _todayString() {
@@ -275,7 +325,8 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       // and every item gets its own entrance animation
       for (final item in items.reversed) {
         foodItems.insert(0, item);
-        _listKey.currentState?.insertItem(0, duration: const Duration(milliseconds: 400));
+        _listKey.currentState
+            ?.insertItem(0, duration: const Duration(milliseconds: 400));
       }
 
       HapticFeedback.lightImpact();
@@ -284,8 +335,10 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       await _updateWidget();
 
       // Write each item to HealthKit (fire-and-forget)
-      for (final item in items) {
-        _healthKitService.writeFoodItem(item);
+      if (_premiumService.isHealthSyncEnabled) {
+        for (final item in items) {
+          _healthKitService.writeFoodItem(item);
+        }
       }
     } catch (e) {
       setState(() {
@@ -315,6 +368,52 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     }
   }
 
+  void _addManualFood() {
+    final name = _foodController.text.trim();
+    final carbText = _carbController.text.trim();
+
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Please enter a food name'),
+          backgroundColor: AppColors.honey.withValues(alpha: 0.9),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    final carbs = double.tryParse(carbText);
+    if (carbs == null || carbs < 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Please enter a valid carb amount'),
+          backgroundColor: AppColors.honey.withValues(alpha: 0.9),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    _foodFocusNode.unfocus();
+
+    final item = FoodItem(name: name, carbs: carbs, isManualEntry: true);
+    setState(() {
+      foodItems.insert(0, item);
+      showingDailyTotal = false;
+      _foodController.clear();
+      _carbController.clear();
+    });
+    _listKey.currentState
+        ?.insertItem(0, duration: const Duration(milliseconds: 400));
+    HapticFeedback.lightImpact();
+    _saveData();
+    _updateWidget();
+    if (_premiumService.isHealthSyncEnabled) {
+      _healthKitService.writeFoodItem(item);
+    }
+  }
+
   void _resetTotal() {
     // Capture items before clearing so animation builders have valid references.
     final snapshot = List<FoodItem>.from(foodItems);
@@ -330,8 +429,10 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       );
     }
     // Delete all reset items from HealthKit
-    for (final item in snapshot) {
-      _healthKitService.deleteFoodItem(item);
+    if (_premiumService.isHealthSyncEnabled) {
+      for (final item in snapshot) {
+        _healthKitService.deleteFoodItem(item);
+      }
     }
     _saveData();
     _updateWidget();
@@ -349,7 +450,9 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     );
     _saveData();
     _updateWidget();
-    _healthKitService.deleteFoodItem(removedItem);
+    if (_premiumService.isHealthSyncEnabled) {
+      _healthKitService.deleteFoodItem(removedItem);
+    }
 
     if (mounted) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -370,12 +473,46 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
               );
               _saveData();
               _updateWidget();
-              _healthKitService.writeFoodItem(removedItem);
+              if (_premiumService.isHealthSyncEnabled) {
+                _healthKitService.writeFoodItem(removedItem);
+              }
             },
           ),
         ),
       );
     }
+  }
+
+  Widget _buildModeChip(String label, bool isActive, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isActive ? AppColors.sage : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isActive
+                ? AppColors.sage
+                : Theme.of(context)
+                    .colorScheme
+                    .onSurfaceVariant
+                    .withValues(alpha: 0.3),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: isActive
+                ? Colors.white
+                : Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildAnimatedItem(FoodItem item, Animation<double> animation) {
@@ -393,7 +530,8 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.3),
       builder: (context) => AlertDialog(
-        backgroundColor: Theme.of(context).colorScheme.surface.withValues(alpha: 0.92),
+        backgroundColor:
+            Theme.of(context).colorScheme.surface.withValues(alpha: 0.92),
         title: Text(item.name),
         content: SingleChildScrollView(
           child: RichText(
@@ -415,7 +553,8 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   }
 
   /// Builds a TextSpan that renders [N] citation references as tappable links.
-  TextSpan _buildDetailsTextSpan(String text, List<String> citations, {required Color baseColor}) {
+  TextSpan _buildDetailsTextSpan(String text, List<String> citations,
+      {required Color baseColor}) {
     final spans = <InlineSpan>[];
     final citationPattern = RegExp(r'\[(\d+)\]');
     var lastEnd = 0;
@@ -496,10 +635,13 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       foodItems.insert(0, item);
       showingDailyTotal = false;
     });
-    _listKey.currentState?.insertItem(0, duration: const Duration(milliseconds: 400));
+    _listKey.currentState
+        ?.insertItem(0, duration: const Duration(milliseconds: 400));
     _saveData();
     _updateWidget();
-    _healthKitService.writeFoodItem(item);
+    if (_premiumService.isHealthSyncEnabled) {
+      _healthKitService.writeFoodItem(item);
+    }
   }
 
   Future<void> _saveToSavedFoods(FoodItem item) async {
@@ -513,8 +655,8 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     }
 
     // Check if item already exists
-    final exists = savedFoods.any((food) =>
-      food.name.toLowerCase() == item.name.toLowerCase());
+    final exists = savedFoods
+        .any((food) => food.name.toLowerCase() == item.name.toLowerCase());
 
     if (!exists) {
       savedFoods.add(item);
@@ -630,6 +772,8 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                     onAddFood: _addSavedFood,
                     healthKitService: _healthKitService,
                     onSettingsChanged: _applySettingsResult,
+                    premiumService: _premiumService,
+                    cloudSyncService: _cloudSyncService,
                   ),
                 ],
               ),
@@ -675,7 +819,8 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
+                      color:
+                          Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
                       blurRadius: 6,
                       offset: const Offset(0, 4),
                     ),
@@ -685,7 +830,8 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                   children: [
                     // "Today's Total" badge
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 6),
                       decoration: BoxDecoration(
                         color: AppColors.sage.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(999),
@@ -721,7 +867,9 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                             style: TextStyle(
                               fontSize: 30,
                               fontWeight: FontWeight.w300,
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
                             ),
                           ),
                         ],
@@ -777,21 +925,67 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
               ),
               child: Column(
                 children: [
+                  // Mode toggle (AI Lookup / Manual)
+                  if (_premiumService.isManualEntryEnabled)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Row(
+                        children: [
+                          _buildModeChip('AI Lookup', !_isManualEntryMode, () {
+                            setState(() => _isManualEntryMode = false);
+                          }),
+                          const SizedBox(width: 8),
+                          _buildModeChip('Manual', _isManualEntryMode, () {
+                            setState(() => _isManualEntryMode = true);
+                          }),
+                        ],
+                      ),
+                    ),
                   TextField(
                     controller: _foodController,
                     focusNode: _foodFocusNode,
                     decoration: InputDecoration(
-                      hintText: 'Enter food item...',
+                      hintText: _isManualEntryMode
+                          ? 'Food name...'
+                          : 'Enter food item...',
                       hintStyle: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurfaceVariant
+                            .withValues(alpha: 0.5),
                       ),
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 20,
                         vertical: 14,
                       ),
                     ),
-                    onSubmitted: (_) => _addFood(),
+                    onSubmitted: (_) =>
+                        _isManualEntryMode ? _addManualFood() : _addFood(),
                   ),
+                  if (_isManualEntryMode) ...[
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _carbController,
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      textInputAction: TextInputAction.done,
+                      decoration: InputDecoration(
+                        hintText: 'Carbs (g)',
+                        suffixText: 'g',
+                        hintStyle: TextStyle(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurfaceVariant
+                              .withValues(alpha: 0.5),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 14,
+                        ),
+                      ),
+                      onSubmitted: (_) => _addManualFood(),
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
@@ -808,7 +1002,9 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                         ],
                       ),
                       child: ElevatedButton(
-                        onPressed: isLoading ? null : _addFood,
+                        onPressed: isLoading
+                            ? null
+                            : (_isManualEntryMode ? _addManualFood : _addFood),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.transparent,
                           shadowColor: Colors.transparent,
@@ -826,14 +1022,15 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                                   color: Colors.white,
                                 ),
                               )
-                            : const Row(
+                            : Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.add, size: 20, color: Colors.white),
-                                  SizedBox(width: 8),
+                                  const Icon(Icons.add,
+                                      size: 20, color: Colors.white),
+                                  const SizedBox(width: 8),
                                   Text(
-                                    'Add Food',
-                                    style: TextStyle(
+                                    _isManualEntryMode ? 'Add' : 'Add Food',
+                                    style: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w500,
                                       color: Colors.white,
@@ -883,14 +1080,17 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                           Icon(
                             Icons.refresh,
                             size: 16,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                           const SizedBox(width: 4),
                           Text(
                             'Reset',
                             style: TextStyle(
                               fontSize: 14,
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
                             ),
                           ),
                         ],
@@ -980,9 +1180,10 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _cloudSyncService.stopListening();
     _foodController.dispose();
+    _carbController.dispose();
     _foodFocusNode.dispose();
     super.dispose();
   }
 }
-

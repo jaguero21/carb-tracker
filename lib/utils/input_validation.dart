@@ -36,6 +36,17 @@ class InputValidation {
       return 'Please enter a valid food name';
     }
 
+    // SECURITY: Block common command injection syntax while keeping normal
+    // punctuation valid for food names (e.g., apostrophes and percent signs).
+    if (_containsCommandInjection(trimmed)) {
+      return 'Please enter a valid food name';
+    }
+
+    // SECURITY: Block path traversal patterns.
+    if (_containsPathTraversal(trimmed)) {
+      return 'Please enter a valid food name';
+    }
+
     // SECURITY: Validate character set
     // FIXED: Use literal space instead of \s to prevent control characters
     // Allows both straight (') and curly (') apostrophes for restaurant names
@@ -83,6 +94,17 @@ class InputValidation {
     return false;
   }
 
+  static bool _containsCommandInjection(String input) {
+    // Block shell control tokens and command substitution markers.
+    return RegExp(r'(;|`|\$\(|&&|\|\|)').hasMatch(input) ||
+        // Single pipe used as a shell operator (non-numeric contexts).
+        RegExp(r'\|').hasMatch(input);
+  }
+
+  static bool _containsPathTraversal(String input) {
+    return input.contains('../') || input.contains('..\\');
+  }
+
   /// Sanitizes input before sending to external APIs
   ///
   /// Additional safety layer - removes any control characters that slipped through
@@ -93,7 +115,8 @@ class InputValidation {
         .replaceAll('\r', ' ')
         .replaceAll('\t', ' ')
         .replaceAll('\x00', '') // null bytes
-        .replaceAll('\u2019', "'") // normalize curly apostrophe (') to straight (')
+        .replaceAll(
+            '\u2019', "'") // normalize curly apostrophe (') to straight (')
         .replaceAll(RegExp(r'\s+'), ' ') // collapse multiple spaces
         .trim();
   }
