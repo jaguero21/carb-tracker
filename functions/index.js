@@ -67,24 +67,27 @@ exports.getMultipleCarbCounts = onCall(
                     "Interpret the input carefully: words may refer to a brand/store name, a style/variety, or the actual food product. " +
                     "For example, 'heb fajita tortilla' means a fajita-style tortilla sold by the brand HEB — NOT a fajita, NOT a taco. " +
                     "Parse the EXACT product the user is describing before looking up nutrition data. " +
-                    "Respond with ONLY a JSON array. " +
-                    'Each element must have "name" (the full product name including brand if given), "carbs" (number of carb grams as a number, not a string), ' +
-                    'and "details" (cite the specific source used e.g. product packaging, manufacturer website, USDA database). ' +
-                    "IMPORTANT: Always use official nutrition data from the manufacturer, store brand, or restaurant website when available. " +
-                    "For store-brand items (HEB, Kirkland, Great Value, etc.), look up the specific product from that brand. " +
-                    "For restaurant items (McDonald's, Chick-fil-A, etc.), use the exact values from their published nutrition information. " +
-                    "For generic foods, use USDA FoodData Central values. " +
-                    "Never estimate or average — use the most authoritative source available. " +
-                    "Include the serving size in the details. " +
-                    'Example: [{"name":"HEB Fajita Tortilla","carbs":26,"details":"Per HEB product nutrition label, one fajita-size flour tortilla contains 26g carbs (1 tortilla serving)."}] ' +
-                    "Return ONLY the JSON array, no other text.",
+                    "IMPORTANT: Return exactly ONE result per distinct food item the user mentions. " +
+                    "If the user says 'tortilla', return only the single best match — do NOT return multiple varieties or sizes. " +
+                    "Only return multiple items if the user explicitly lists multiple foods (e.g. 'burger and fries' = 2 items). " +
+                    "Respond with ONLY a valid JSON array — no markdown, no code fences, no extra text. " +
+                    'Each element must have "name" (string, the full product name including brand if given), "carbs" (number, grams of carbs as a numeric value), ' +
+                    'and "details" (string, cite the specific source and serving size). ' +
+                    "Priority for data sources: " +
+                    "1. Official manufacturer/restaurant/store-brand nutrition info (product packaging, website). " +
+                    "2. USDA FoodData Central. " +
+                    "3. Reliable nutrition databases (Nutritionix, CalorieKing, MyFitnessPal verified entries). " +
+                    "If the exact brand product cannot be found, use the closest matching generic version and note this in details. " +
+                    "Always include the serving size in details. " +
+                    "You MUST always return a valid JSON array with at least one item — never refuse or return empty results. " +
+                    'Example: [{"name":"HEB Fajita Tortilla","carbs":26,"details":"Per HEB product nutrition label, one fajita-size flour tortilla contains 26g carbs (1 tortilla serving)."}]',
                 },
                 {
                   role: "user",
                   content: sanitized,
                 },
               ],
-              max_tokens: 600,
+              max_tokens: 1024,
               temperature: 0.1,
             }),
           }
@@ -122,18 +125,29 @@ exports.getMultipleCarbCounts = onCall(
 
         if (!result.choices || !result.choices[0]) {
           console.error("Invalid API response structure:", JSON.stringify(result).substring(0, 500));
+          if (attempt < maxAttempts) {
+            await new Promise((r) => setTimeout(r, attempt * 1000));
+            continue;
+          }
           throw new HttpsError("internal", "Invalid API response");
         }
 
-        const content = result.choices[0].message.content.trim();
+        let content = result.choices[0].message.content.trim();
         const citations = result.citations || [];
 
         console.log("Raw API response content:", content);
 
-        // Parse JSON array from response (handle markdown code fences)
+        // Strip markdown code fences if present
+        content = content.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+
+        // Parse JSON array from response
         const arrayMatch = content.match(/\[[\s\S]*\]/);
         if (!arrayMatch) {
-          console.error("Could not find JSON array in response:", content);
+          console.error(`Could not find JSON array (attempt ${attempt}/${maxAttempts}):`, content);
+          if (attempt < maxAttempts) {
+            await new Promise((r) => setTimeout(r, attempt * 1000));
+            continue;
+          }
           throw new HttpsError("internal", "Could not parse food items");
         }
 
@@ -141,12 +155,20 @@ exports.getMultipleCarbCounts = onCall(
         try {
           items = JSON.parse(arrayMatch[0]);
         } catch (parseErr) {
-          console.error("JSON parse error:", parseErr.message, "Content:", arrayMatch[0]);
+          console.error(`JSON parse error (attempt ${attempt}/${maxAttempts}):`, parseErr.message, "Content:", arrayMatch[0]);
+          if (attempt < maxAttempts) {
+            await new Promise((r) => setTimeout(r, attempt * 1000));
+            continue;
+          }
           throw new HttpsError("internal", "Could not parse food items");
         }
 
         if (!Array.isArray(items) || items.length === 0) {
-          console.error("Parsed result is not a non-empty array:", JSON.stringify(items));
+          console.error(`Empty result array (attempt ${attempt}/${maxAttempts}):`, JSON.stringify(items));
+          if (attempt < maxAttempts) {
+            await new Promise((r) => setTimeout(r, attempt * 1000));
+            continue;
+          }
           throw new HttpsError("internal", "No food items found in response");
         }
 
@@ -157,7 +179,7 @@ exports.getMultipleCarbCounts = onCall(
             const numMatch = carbs.match(/(\d+\.?\d*)/);
             carbs = numMatch ? parseFloat(numMatch[1]) : 0;
           }
-          carbs = typeof carbs === "number" ? carbs : 0;
+          carbs = typeof carbs === "number" && !isNaN(carbs) ? carbs : 0;
 
           return {
             name: String(item.name || "Unknown"),

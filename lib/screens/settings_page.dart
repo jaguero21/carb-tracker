@@ -656,6 +656,8 @@ class _SettingsPageState extends State<SettingsPage> {
                 controller: _goalController,
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _saveGoals(),
                 decoration: InputDecoration(
                   hintText: 'e.g. 50',
                   suffixText: 'g',

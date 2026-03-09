@@ -80,6 +80,10 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     _loadSavedData();
     _checkWidgetLaunch();
     if (Platform.isIOS) _healthKitService.requestAuthorization();
+    // Auto-open keyboard so users can start typing immediately
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _foodFocusNode.requestFocus();
+    });
   }
 
   @override
