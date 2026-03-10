@@ -9,6 +9,11 @@ class FoodItemCard extends StatelessWidget {
   final FoodCategory? category;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
+  final bool showMacros;
+  final double? protein;
+  final double? fat;
+  final double? fiber;
+  final double? calories;
 
   const FoodItemCard({
     super.key,
@@ -18,12 +23,27 @@ class FoodItemCard extends StatelessWidget {
     this.category,
     this.onTap,
     this.onLongPress,
+    this.showMacros = false,
+    this.protein,
+    this.fat,
+    this.fiber,
+    this.calories,
   });
+
+  String? _macroString() {
+    final parts = <String>[];
+    if (protein != null) parts.add('P ${protein!.toStringAsFixed(1)}g');
+    if (fat != null) parts.add('F ${fat!.toStringAsFixed(1)}g');
+    if (fiber != null) parts.add('Fiber ${fiber!.toStringAsFixed(1)}g');
+    if (calories != null) parts.add('${calories!.toStringAsFixed(0)} kcal');
+    return parts.isEmpty ? null : parts.join(' · ');
+  }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final categoryColor = category?.color ?? AppColors.sage;
+    final macroLine = showMacros ? _macroString() : null;
 
     return GestureDetector(
       onTap: onTap,
@@ -81,6 +101,21 @@ class FoodItemCard extends StatelessWidget {
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
+                  if (macroLine != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 3),
+                      child: Text(
+                        macroLine,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurfaceVariant
+                              .withValues(alpha: 0.7),
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                 ],
               ),
             ),

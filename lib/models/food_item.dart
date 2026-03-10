@@ -62,6 +62,10 @@ enum FoodCategory {
 class FoodItem {
   final String name;
   final double carbs;
+  final double? protein;
+  final double? fat;
+  final double? fiber;
+  final double? calories;
   final String? details;
   final List<String> citations;
   final DateTime loggedAt;
@@ -71,6 +75,10 @@ class FoodItem {
   FoodItem({
     required this.name,
     required this.carbs,
+    this.protein,
+    this.fat,
+    this.fiber,
+    this.calories,
     this.details,
     this.citations = const [],
     this.isManualEntry = false,
@@ -79,12 +87,18 @@ class FoodItem {
   })  : loggedAt = loggedAt ?? DateTime.now(),
         category = category ?? FoodCategory.fromTime(loggedAt ?? DateTime.now());
 
+  bool get hasMacros => protein != null || fat != null || fiber != null || calories != null;
+
   Map<String, dynamic> toJson() {
     return {
       'name': name,
       'carbs': carbs,
       'loggedAt': loggedAt.toIso8601String(),
       'category': category.name,
+      if (protein != null) 'protein': protein,
+      if (fat != null) 'fat': fat,
+      if (fiber != null) 'fiber': fiber,
+      if (calories != null) 'calories': calories,
       if (details != null) 'details': details,
       if (citations.isNotEmpty) 'citations': citations,
       if (isManualEntry) 'isManualEntry': true,
@@ -103,11 +117,21 @@ class FoodItem {
     return parsed;
   }
 
+  static double? _parseDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    return double.tryParse(value.toString());
+  }
+
   factory FoodItem.fromJson(Map<String, dynamic> json) {
     final loggedAt = _parseLoggedAt(json['loggedAt'], json['name'] as String);
     return FoodItem(
       name: json['name'] as String,
       carbs: (json['carbs'] as num).toDouble(),
+      protein: _parseDouble(json['protein']),
+      fat: _parseDouble(json['fat']),
+      fiber: _parseDouble(json['fiber']),
+      calories: _parseDouble(json['calories']),
       details: json['details'] as String?,
       citations: json['citations'] != null
           ? List<String>.from(json['citations'])
