@@ -584,6 +584,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   }
 
   void _showFoodDetails(FoodItem item) {
+    final showMacros = _premiumService.isMacrosEnabled && item.hasMacros;
     showDialog(
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.3),
@@ -592,12 +593,22 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
             Theme.of(context).colorScheme.surface.withValues(alpha: 0.92),
         title: Text(item.name),
         content: SingleChildScrollView(
-          child: RichText(
-            text: _buildDetailsTextSpan(
-              item.details ?? 'No details available for this item.',
-              item.citations,
-              baseColor: Theme.of(context).colorScheme.onSurface,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (showMacros) ...[
+                _buildMacroGrid(item, context),
+                const SizedBox(height: 16),
+              ],
+              RichText(
+                text: _buildDetailsTextSpan(
+                  item.details ?? 'No details available for this item.',
+                  item.citations,
+                  baseColor: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+            ],
           ),
         ),
         actions: [
@@ -607,6 +618,48 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildMacroGrid(FoodItem item, BuildContext context) {
+    final tiles = <_MacroTile>[
+      _MacroTile('Carbs', item.carbs, 'g'),
+      if (item.protein != null) _MacroTile('Protein', item.protein!, 'g'),
+      if (item.fat != null) _MacroTile('Fat', item.fat!, 'g'),
+      if (item.fiber != null) _MacroTile('Fiber', item.fiber!, 'g'),
+      if (item.calories != null) _MacroTile('Calories', item.calories!, 'kcal'),
+    ];
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: tiles.map((t) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppColors.sage.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Column(
+            children: [
+              Text(
+                '${t.value.toStringAsFixed(t.unit == 'kcal' ? 0 : 1)}${t.unit}',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+              Text(
+                t.label,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -693,6 +746,73 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       carbs: item.carbs,
       category: item.category,
       onLongPress: () => _showFoodDetails(item),
+    );
+  }
+
+  Widget _buildMacroStrip(bool isDark) {
+    final protein = foodItems.fold(0.0, (s, i) => s + (i.protein ?? 0));
+    final fat = foodItems.fold(0.0, (s, i) => s + (i.fat ?? 0));
+    final fiber = foodItems.fold(0.0, (s, i) => s + (i.fiber ?? 0));
+    final calories = foodItems.fold(0.0, (s, i) => s + (i.calories ?? 0));
+
+    Widget col(String label, String value) {
+      return Expanded(
+        child: Column(
+          children: [
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    Widget divider() => Container(
+          width: 1,
+          height: 32,
+          color: Theme.of(context)
+              .colorScheme
+              .onSurfaceVariant
+              .withValues(alpha: 0.15),
+        );
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
+            blurRadius: 6,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          col('Protein', '${protein.toStringAsFixed(0)}g'),
+          divider(),
+          col('Fat', '${fat.toStringAsFixed(0)}g'),
+          divider(),
+          col('Fiber', '${fiber.toStringAsFixed(0)}g'),
+          divider(),
+          col('Calories', calories.toStringAsFixed(0)),
+        ],
+      ),
     );
   }
 
@@ -984,6 +1104,13 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
 
             const SizedBox(height: 16),
 
+            // Macro totals strip (premium, only when data exists)
+            if (_premiumService.isMacrosEnabled &&
+                foodItems.any((i) => i.hasMacros)) ...[
+              _buildMacroStrip(isDark),
+              const SizedBox(height: 16),
+            ],
+
             // Input Card
             Container(
               padding: const EdgeInsets.all(24),
@@ -1261,4 +1388,11 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     _foodFocusNode.dispose();
     super.dispose();
   }
+}
+
+class _MacroTile {
+  final String label;
+  final double value;
+  final String unit;
+  const _MacroTile(this.label, this.value, this.unit);
 }

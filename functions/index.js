@@ -71,8 +71,10 @@ exports.getMultipleCarbCounts = onCall(
                     "If the user says 'tortilla', return only the single best match — do NOT return multiple varieties or sizes. " +
                     "Only return multiple items if the user explicitly lists multiple foods (e.g. 'burger and fries' = 2 items). " +
                     "Respond with ONLY a valid JSON array — no markdown, no code fences, no extra text. " +
-                    'Each element must have "name" (string, the full product name including brand if given), "carbs" (number, grams of carbs as a numeric value), ' +
-                    'and "details" (string, cite the specific source and serving size). ' +
+                    'Each element must have "name" (string, the full product name including brand if given), "carbs" (number, grams of carbohydrates), ' +
+                    '"protein" (number, grams of protein), "fat" (number, grams of total fat), "fiber" (number, grams of dietary fiber), ' +
+                    '"calories" (number, kcal), and "details" (string, cite the specific source and serving size). ' +
+                    "All numeric fields must be plain numbers — no units, no strings. " +
                     "Priority for data sources: " +
                     "1. Official manufacturer/restaurant/store-brand nutrition info (product packaging, website). " +
                     "2. USDA FoodData Central. " +
@@ -80,7 +82,7 @@ exports.getMultipleCarbCounts = onCall(
                     "If the exact brand product cannot be found, use the closest matching generic version and note this in details. " +
                     "Always include the serving size in details. " +
                     "You MUST always return a valid JSON array with at least one item — never refuse or return empty results. " +
-                    'Example: [{"name":"HEB Fajita Tortilla","carbs":26,"details":"Per HEB product nutrition label, one fajita-size flour tortilla contains 26g carbs (1 tortilla serving)."}]',
+                    'Example: [{"name":"HEB Fajita Tortilla","carbs":26,"protein":4,"fat":3,"fiber":1,"calories":150,"details":"Per HEB product nutrition label, one fajita-size flour tortilla (1 tortilla, 45g serving)."}]',
                 },
                 {
                   role: "user",
@@ -173,17 +175,23 @@ exports.getMultipleCarbCounts = onCall(
         }
 
         const mapped = items.map((item) => {
-          // Ensure carbs is a number — handle string values like "45" or "45g"
-          let carbs = item.carbs;
-          if (typeof carbs === "string") {
-            const numMatch = carbs.match(/(\d+\.?\d*)/);
-            carbs = numMatch ? parseFloat(numMatch[1]) : 0;
-          }
-          carbs = typeof carbs === "number" && !isNaN(carbs) ? carbs : 0;
+          const parseNum = (val) => {
+            if (typeof val === "string") {
+              const m = val.match(/(\d+\.?\d*)/);
+              val = m ? parseFloat(m[1]) : null;
+            }
+            return typeof val === "number" && !isNaN(val) ? val : null;
+          };
+
+          const carbs = parseNum(item.carbs) ?? 0;
 
           return {
             name: String(item.name || "Unknown"),
             carbs: carbs,
+            protein: parseNum(item.protein),
+            fat: parseNum(item.fat),
+            fiber: parseNum(item.fiber),
+            calories: parseNum(item.calories),
             details: item.details ? String(item.details) : null,
           };
         });

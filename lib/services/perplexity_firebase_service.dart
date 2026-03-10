@@ -56,9 +56,19 @@ class PerplexityFirebaseService {
             ? carbsRaw.toDouble()
             : double.tryParse(carbsRaw.toString()) ?? 0.0;
 
+        double? parseOptional(dynamic v) {
+          if (v == null) return null;
+          if (v is num) return v.toDouble();
+          return double.tryParse(v.toString());
+        }
+
         return FoodItem(
           name: (item['name'] as String?) ?? 'Unknown',
           carbs: carbs,
+          protein: parseOptional(item['protein']),
+          fat: parseOptional(item['fat']),
+          fiber: parseOptional(item['fiber']),
+          calories: parseOptional(item['calories']),
           details: item['details'] as String?,
           citations: citations,
         );

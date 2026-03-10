@@ -955,11 +955,13 @@ class _SettingsPageState extends State<SettingsPage> {
           icon: Icons.bar_chart,
           title: 'Macro Nutrients',
           description: 'Track protein, fat, fiber and more',
-          value: false,
-          enabled: false,
-          badge: 'Coming soon',
+          value: ps?.isMacrosEnabled ?? false,
+          enabled: ps?.isPremium ?? false,
           isDark: isDark,
-          onChanged: (_) {},
+          onChanged: (v) async {
+            await ps?.setFeatureEnabled(StorageKeys.premiumMacros, v);
+            setState(() {});
+          },
         ),
       ],
     );
