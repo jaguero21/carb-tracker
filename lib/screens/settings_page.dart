@@ -25,8 +25,10 @@ class SettingsPage extends StatefulWidget {
   final void Function(FoodItem)? onAddFood;
   final HealthKitService? healthKitService;
   final void Function(SettingsResult)? onSettingsChanged;
+  final VoidCallback? onFavoritesChanged;
   final PremiumService? premiumService;
   final CloudSyncService? cloudSyncService;
+  final VoidCallback? onCloudSyncEnabled;
 
   const SettingsPage({
     super.key,
@@ -35,8 +37,10 @@ class SettingsPage extends StatefulWidget {
     this.onAddFood,
     this.healthKitService,
     this.onSettingsChanged,
+    this.onFavoritesChanged,
     this.premiumService,
     this.cloudSyncService,
+    this.onCloudSyncEnabled,
   });
 
   @override
@@ -141,6 +145,7 @@ class _SettingsPageState extends State<SettingsPage> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(StorageKeys.savedFoods);
       setState(() => _savedFoods.clear());
+      widget.onFavoritesChanged?.call();
     }
   }
 
@@ -150,6 +155,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final prefs = await SharedPreferences.getInstance();
     final encoded = jsonEncode(_savedFoods.map((f) => f.toJson()).toList());
     await prefs.setString(StorageKeys.savedFoods, encoded);
+    widget.onFavoritesChanged?.call();
   }
 
   // ── History ──
@@ -938,7 +944,7 @@ class _SettingsPageState extends State<SettingsPage> {
             }
             await ps?.setFeatureEnabled(StorageKeys.premiumCloudSync, v);
             if (v) {
-              await widget.cloudSyncService?.pushToCloud();
+              widget.onCloudSyncEnabled?.call();
             } else {
               await widget.cloudSyncService?.stopListening();
             }

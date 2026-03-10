@@ -104,11 +104,68 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     await _cloudSyncService.startListening(_onRemoteCloudChange);
     final pulled = await _cloudSyncService.pullFromCloud();
     if (pulled != null && mounted) {
-      _loadSavedData();
+      final prefs = await SharedPreferences.getInstance();
+      final cloudTs = pulled[StorageKeys.cloudLastModified] as String? ?? '';
+      final localTs = prefs.getString(StorageKeys.cloudLastModified) ?? '';
+      if (cloudTs.isNotEmpty && cloudTs.compareTo(localTs) > 0) {
+        await _applyCloudData(pulled);
+      }
     }
   }
 
-  void _onRemoteCloudChange() {
+  void _onRemoteCloudChange(Map<String, dynamic>? data) {
+    if (data != null && mounted) _applyCloudData(data);
+  }
+
+  /// Builds the payload of all syncable data for a cloud push.
+  Map<String, dynamic> _buildSyncPayload(SharedPreferences prefs) {
+    return {
+      StorageKeys.foodItems:
+          jsonEncode(foodItems.map((f) => f.toJson()).toList()),
+      StorageKeys.savedFoods: prefs.getString(StorageKeys.savedFoods) ?? '',
+      StorageKeys.dailyCarbGoal: dailyCarbGoal ?? 0.0,
+      StorageKeys.dailyResetHour: resetHour,
+      StorageKeys.lastSaveDate: _todayString(),
+    };
+  }
+
+  /// Applies a cloud data payload to SharedPreferences then reloads state.
+  /// Only applies food items when [last_save_date] matches today, so that
+  /// stale food from another device doesn't overwrite the current day's list.
+  Future<void> _applyCloudData(Map<String, dynamic> data) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final goal = data[StorageKeys.dailyCarbGoal];
+    if (goal is num && goal.toDouble() > 0) {
+      await prefs.setDouble(StorageKeys.dailyCarbGoal, goal.toDouble());
+    } else if (goal is num) {
+      await prefs.remove(StorageKeys.dailyCarbGoal);
+    }
+
+    final resetHourVal = data[StorageKeys.dailyResetHour];
+    if (resetHourVal is num) {
+      await prefs.setInt(StorageKeys.dailyResetHour, resetHourVal.toInt());
+    }
+
+    if (data[StorageKeys.savedFoods] is String) {
+      await prefs.setString(
+          StorageKeys.savedFoods, data[StorageKeys.savedFoods] as String);
+    }
+
+    // Only import food items if the cloud data is from today
+    final cloudSaveDate = data[StorageKeys.lastSaveDate] as String?;
+    if (cloudSaveDate == _todayString() &&
+        data[StorageKeys.foodItems] is String) {
+      await prefs.setString(
+          StorageKeys.foodItems, data[StorageKeys.foodItems] as String);
+      await prefs.setString(StorageKeys.lastSaveDate, cloudSaveDate!);
+    }
+
+    if (data[StorageKeys.cloudLastModified] is String) {
+      await prefs.setString(StorageKeys.cloudLastModified,
+          data[StorageKeys.cloudLastModified] as String);
+    }
+
     if (mounted) _loadSavedData();
   }
 
@@ -119,7 +176,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       _importSiriLoggedItems();
       if (_premiumService.isCloudSyncEnabled) {
         _cloudSyncService.pullFromCloud().then((pulled) {
-          if (pulled != null && mounted) _loadSavedData();
+          if (pulled != null && mounted) _applyCloudData(pulled);
         });
       } else {
         _cloudSyncService.stopListening();
@@ -268,7 +325,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
 
     // Push to iCloud if cloud sync is enabled
     if (_premiumService.isCloudSyncEnabled) {
-      _cloudSyncService.pushToCloud();
+      _cloudSyncService.pushToCloud(_buildSyncPayload(prefs));
     }
   }
 
@@ -369,6 +426,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   }
 
   void _addManualFood() {
+    if (!_premiumService.isManualEntryEnabled) return;
     final name = _foodController.text.trim();
     final carbText = _carbController.text.trim();
 
@@ -620,6 +678,14 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     _updateWidget();
   }
 
+  /// Called by SettingsPage when favorites are added/removed, so we can push
+  /// the full sync payload (which includes saved_foods) to iCloud.
+  void _onFavoritesChanged() async {
+    if (!_premiumService.isCloudSyncEnabled) return;
+    final prefs = await SharedPreferences.getInstance();
+    _cloudSyncService.pushToCloud(_buildSyncPayload(prefs));
+  }
+
   Widget _buildFoodTile(FoodItem item) {
     return FoodItemCard(
       name: item.name,
@@ -662,6 +728,10 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       savedFoods.add(item);
       final encoded = jsonEncode(savedFoods.map((f) => f.toJson()).toList());
       await prefs.setString(StorageKeys.savedFoods, encoded);
+
+      if (_premiumService.isCloudSyncEnabled) {
+        _cloudSyncService.pushToCloud(_buildSyncPayload(prefs));
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -772,8 +842,13 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                     onAddFood: _addSavedFood,
                     healthKitService: _healthKitService,
                     onSettingsChanged: _applySettingsResult,
+                    onFavoritesChanged: _onFavoritesChanged,
                     premiumService: _premiumService,
                     cloudSyncService: _cloudSyncService,
+                    onCloudSyncEnabled: () {
+                      _initCloudSync();
+                      _saveData();
+                    },
                   ),
                 ],
               ),
@@ -960,9 +1035,9 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                       ),
                     ),
                     onSubmitted: (_) =>
-                        _isManualEntryMode ? _addManualFood() : _addFood(),
+                        (_isManualEntryMode && _premiumService.isManualEntryEnabled) ? _addManualFood() : _addFood(),
                   ),
-                  if (_isManualEntryMode) ...[
+                  if (_isManualEntryMode && _premiumService.isManualEntryEnabled) ...[
                     const SizedBox(height: 12),
                     TextField(
                       controller: _carbController,
@@ -1004,7 +1079,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                       child: ElevatedButton(
                         onPressed: isLoading
                             ? null
-                            : (_isManualEntryMode ? _addManualFood : _addFood),
+                            : ((_isManualEntryMode && _premiumService.isManualEntryEnabled) ? _addManualFood : _addFood),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.transparent,
                           shadowColor: Colors.transparent,
