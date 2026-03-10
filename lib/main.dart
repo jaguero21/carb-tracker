@@ -77,6 +77,10 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   bool isLoading = false;
   bool showingDailyTotal = false;
   double? dailyCarbGoal;
+  double? proteinGoal;
+  double? fatGoal;
+  double? fiberGoal;
+  double? caloriesGoal;
   int resetHour = 0;
   int _currentPage = 0; // 0 = home, 1 = settings
 
@@ -214,6 +218,10 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     final savedGoal = prefs.getDouble(StorageKeys.dailyCarbGoal);
     final savedResetHour = prefs.getInt(StorageKeys.dailyResetHour) ?? 0;
     resetHour = savedResetHour;
+    proteinGoal = prefs.getDouble(StorageKeys.proteinGoal);
+    fatGoal = prefs.getDouble(StorageKeys.fatGoal);
+    fiberGoal = prefs.getDouble(StorageKeys.fiberGoal);
+    caloriesGoal = prefs.getDouble(StorageKeys.caloriesGoal);
     final lastSaveDate = prefs.getString(StorageKeys.lastSaveDate);
     final isNewDay = lastSaveDate != null && lastSaveDate != _todayString();
 
@@ -724,6 +732,10 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     setState(() {
       dailyCarbGoal = result.dailyCarbGoal;
       resetHour = result.resetHour;
+      proteinGoal = result.proteinGoal;
+      fatGoal = result.fatGoal;
+      fiberGoal = result.fiberGoal;
+      caloriesGoal = result.caloriesGoal;
     });
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(StorageKeys.dailyResetHour, resetHour);
@@ -755,16 +767,38 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     final fiber = foodItems.fold(0.0, (s, i) => s + (i.fiber ?? 0));
     final calories = foodItems.fold(0.0, (s, i) => s + (i.calories ?? 0));
 
-    Widget col(String label, String value) {
+    Widget col(String label, double value, double? goal, {bool isCalories = false}) {
+      final unit = isCalories ? '' : 'g';
+      final valueStr = isCalories
+          ? value.toStringAsFixed(0)
+          : value.toStringAsFixed(0);
+      final goalStr = goal != null
+          ? (isCalories ? ' / ${goal.toStringAsFixed(0)}' : ' / ${goal.toStringAsFixed(0)}g')
+          : null;
+
       return Expanded(
         child: Column(
           children: [
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Theme.of(context).colorScheme.onSurface,
+            RichText(
+              text: TextSpan(
+                children: [
+                  TextSpan(
+                    text: '$valueStr$unit',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                  if (goalStr != null)
+                    TextSpan(
+                      text: goalStr,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                ],
               ),
             ),
             const SizedBox(height: 2),
@@ -804,13 +838,13 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       ),
       child: Row(
         children: [
-          col('Protein', '${protein.toStringAsFixed(0)}g'),
+          col('Protein', protein, proteinGoal),
           divider(),
-          col('Fat', '${fat.toStringAsFixed(0)}g'),
+          col('Fat', fat, fatGoal),
           divider(),
-          col('Fiber', '${fiber.toStringAsFixed(0)}g'),
+          col('Fiber', fiber, fiberGoal),
           divider(),
-          col('Calories', calories.toStringAsFixed(0)),
+          col('Calories', calories, caloriesGoal, isCalories: true),
         ],
       ),
     );

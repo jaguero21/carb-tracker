@@ -15,8 +15,19 @@ import '../widgets/food_item_card.dart';
 class SettingsResult {
   final double? dailyCarbGoal;
   final int resetHour;
+  final double? proteinGoal;
+  final double? fatGoal;
+  final double? fiberGoal;
+  final double? caloriesGoal;
 
-  const SettingsResult({this.dailyCarbGoal, required this.resetHour});
+  const SettingsResult({
+    this.dailyCarbGoal,
+    required this.resetHour,
+    this.proteinGoal,
+    this.fatGoal,
+    this.fiberGoal,
+    this.caloriesGoal,
+  });
 }
 
 class SettingsPage extends StatefulWidget {
@@ -55,6 +66,12 @@ class _SettingsPageState extends State<SettingsPage> {
   late int _resetHour;
   String? _goalError;
 
+  // Macro goal state
+  final TextEditingController _proteinGoalController = TextEditingController();
+  final TextEditingController _fatGoalController = TextEditingController();
+  final TextEditingController _fiberGoalController = TextEditingController();
+  final TextEditingController _caloriesGoalController = TextEditingController();
+
   // Favorites state
   List<FoodItem> _savedFoods = [];
   bool _isFavoritesLoading = true;
@@ -77,6 +94,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
     _resetHour = widget.resetHour;
     _loadSavedFoods();
+    _loadMacroGoals();
     if (Platform.isIOS && widget.healthKitService != null) {
       _loadHistory();
     } else {
@@ -100,6 +118,10 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   void dispose() {
     _goalController.dispose();
+    _proteinGoalController.dispose();
+    _fatGoalController.dispose();
+    _fiberGoalController.dispose();
+    _caloriesGoalController.dispose();
     super.dispose();
   }
 
@@ -195,6 +217,27 @@ class _SettingsPageState extends State<SettingsPage> {
 
   // ── Goals ──
 
+  Future<void> _loadMacroGoals() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      final p = prefs.getDouble(StorageKeys.proteinGoal);
+      final f = prefs.getDouble(StorageKeys.fatGoal);
+      final fi = prefs.getDouble(StorageKeys.fiberGoal);
+      final c = prefs.getDouble(StorageKeys.caloriesGoal);
+      _proteinGoalController.text = p != null ? p.toStringAsFixed(0) : '';
+      _fatGoalController.text = f != null ? f.toStringAsFixed(0) : '';
+      _fiberGoalController.text = fi != null ? fi.toStringAsFixed(0) : '';
+      _caloriesGoalController.text = c != null ? c.toStringAsFixed(0) : '';
+    });
+  }
+
+  double? _parseMacroGoal(TextEditingController c) {
+    final text = c.text.trim();
+    if (text.isEmpty) return null;
+    final v = double.tryParse(text);
+    return (v != null && v > 0) ? v : null;
+  }
+
   double? _parseGoal() {
     final text = _goalController.text.trim();
     if (text.isEmpty) return null;
@@ -218,16 +261,52 @@ class _SettingsPageState extends State<SettingsPage> {
     return true;
   }
 
-  void _saveGoals() {
+  Future<void> _saveGoals() async {
     if (!_validateAndSave()) return;
-    final result = SettingsResult(dailyCarbGoal: _parseGoal(), resetHour: _resetHour);
-    widget.onSettingsChanged?.call(result);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Settings saved'),
-        duration: Duration(seconds: 2),
-      ),
+    final protein = _parseMacroGoal(_proteinGoalController);
+    final fat = _parseMacroGoal(_fatGoalController);
+    final fiber = _parseMacroGoal(_fiberGoalController);
+    final calories = _parseMacroGoal(_caloriesGoalController);
+
+    final prefs = await SharedPreferences.getInstance();
+    if (protein != null) {
+      await prefs.setDouble(StorageKeys.proteinGoal, protein);
+    } else {
+      await prefs.remove(StorageKeys.proteinGoal);
+    }
+    if (fat != null) {
+      await prefs.setDouble(StorageKeys.fatGoal, fat);
+    } else {
+      await prefs.remove(StorageKeys.fatGoal);
+    }
+    if (fiber != null) {
+      await prefs.setDouble(StorageKeys.fiberGoal, fiber);
+    } else {
+      await prefs.remove(StorageKeys.fiberGoal);
+    }
+    if (calories != null) {
+      await prefs.setDouble(StorageKeys.caloriesGoal, calories);
+    } else {
+      await prefs.remove(StorageKeys.caloriesGoal);
+    }
+
+    final result = SettingsResult(
+      dailyCarbGoal: _parseGoal(),
+      resetHour: _resetHour,
+      proteinGoal: protein,
+      fatGoal: fat,
+      fiberGoal: fiber,
+      caloriesGoal: calories,
     );
+    widget.onSettingsChanged?.call(result);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Settings saved'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   String _formatHour(int hour) {
@@ -766,6 +845,12 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ),
 
+        // Macro Goals card — only shown when macros feature is enabled
+        if (widget.premiumService?.isMacrosEnabled == true) ...[
+          const SizedBox(height: 16),
+          _buildMacroGoalsCard(colorScheme, isDark),
+        ],
+
         const SizedBox(height: 32),
 
         // Save button with gradient
@@ -802,6 +887,98 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildMacroGoalsCard(ColorScheme colorScheme, bool isDark) {
+    Widget field(String label, String hint, TextEditingController controller) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 80,
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            Expanded(
+              child: TextField(
+                controller: controller,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                textInputAction: TextInputAction.next,
+                decoration: InputDecoration(
+                  hintText: hint,
+                  suffixText: label == 'Calories' ? 'kcal' : 'g',
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
+            blurRadius: 6,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _buildIconBadge(Icons.bar_chart),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Macro Goals',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Set daily targets for each macro',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          field('Protein', 'e.g. 120', _proteinGoalController),
+          field('Fat', 'e.g. 65', _fatGoalController),
+          field('Fiber', 'e.g. 25', _fiberGoalController),
+          field('Calories', 'e.g. 2000', _caloriesGoalController),
+        ],
+      ),
     );
   }
 
