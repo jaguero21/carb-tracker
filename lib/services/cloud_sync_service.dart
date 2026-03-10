@@ -1,13 +1,13 @@
 import 'dart:async';
+import 'dart:developer' as dev;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 class CloudSyncService {
   static const _channel = MethodChannel('com.carpecarb/cloudsync');
   static const _remoteChangeDebounce = Duration(milliseconds: 300);
 
-  VoidCallback? _onRemoteChange;
+  void Function(Map<String, dynamic>?)? _onRemoteChange;
   Timer? _remoteChangeDebounceTimer;
 
   CloudSyncService() {
@@ -16,9 +16,10 @@ class CloudSyncService {
 
   Future<dynamic> _handleMethod(MethodCall call) async {
     if (call.method == 'onRemoteChange') {
+      final data = (call.arguments as Map?)?.cast<String, dynamic>();
       _remoteChangeDebounceTimer?.cancel();
       _remoteChangeDebounceTimer = Timer(_remoteChangeDebounce, () {
-        _onRemoteChange?.call();
+        _onRemoteChange?.call(data);
       });
     }
   }
@@ -28,35 +29,41 @@ class CloudSyncService {
       final result = await _channel.invokeMethod<bool>('isAvailable');
       return result ?? false;
     } catch (e) {
-      debugPrint('CloudSyncService.isAvailable error: $e');
+      dev.log('CloudSyncService.isAvailable error: $e');
       return false;
     }
   }
 
-  Future<void> pushToCloud() async {
+  /// Push [data] to iCloud. Flutter is responsible for passing all syncable keys.
+  Future<void> pushToCloud(Map<String, dynamic> data) async {
     try {
-      await _channel.invokeMethod('pushToCloud');
+      await _channel.invokeMethod('pushToCloud', data);
     } catch (e) {
-      debugPrint('CloudSyncService.pushToCloud error: $e');
+      dev.log('CloudSyncService.pushToCloud error: $e');
     }
   }
 
+  /// Pull data from iCloud. Returns the full payload (including cloud_last_modified)
+  /// or null if iCloud is unavailable or has no data yet.
   Future<Map<String, dynamic>?> pullFromCloud() async {
     try {
       final result = await _channel.invokeMethod<Map>('pullFromCloud');
       return result?.cast<String, dynamic>();
     } catch (e) {
-      debugPrint('CloudSyncService.pullFromCloud error: $e');
+      dev.log('CloudSyncService.pullFromCloud error: $e');
       return null;
     }
   }
 
-  Future<void> startListening(VoidCallback onRemoteChange) async {
+  /// Start listening for remote changes. [onRemoteChange] is called with the
+  /// pulled data whenever another device pushes an update.
+  Future<void> startListening(
+      void Function(Map<String, dynamic>?) onRemoteChange) async {
     _onRemoteChange = onRemoteChange;
     try {
       await _channel.invokeMethod('startObserving');
     } catch (e) {
-      debugPrint('CloudSyncService.startListening error: $e');
+      dev.log('CloudSyncService.startListening error: $e');
     }
   }
 
@@ -67,7 +74,7 @@ class CloudSyncService {
     try {
       await _channel.invokeMethod('stopObserving');
     } catch (e) {
-      debugPrint('CloudSyncService.stopListening error: $e');
+      dev.log('CloudSyncService.stopListening error: $e');
     }
   }
 }

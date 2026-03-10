@@ -21,7 +21,9 @@ class CloudSyncChannel {
             result(syncStore.isAvailable)
 
         case "pushToCloud":
-            syncStore.pushToCloud()
+            // Flutter passes the full data payload as the call arguments
+            let data = call.arguments as? [String: Any] ?? [:]
+            syncStore.pushToCloud(data)
             result(true)
 
         case "pullFromCloud":
@@ -29,9 +31,11 @@ class CloudSyncChannel {
             result(pulled)
 
         case "startObserving":
-            syncStore.startObserving { [weak self] in
+            syncStore.startObserving { [weak self] data in
                 DispatchQueue.main.async {
-                    self?.channel.invokeMethod("onRemoteChange", arguments: nil)
+                    // Send the pulled data directly so Flutter can apply it
+                    // without a separate round-trip pull call.
+                    self?.channel.invokeMethod("onRemoteChange", arguments: data)
                 }
             }
             result(true)

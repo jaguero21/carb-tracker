@@ -2,11 +2,14 @@ import Foundation
 
 /// Syncs app data across devices using NSUbiquitousKeyValueStore (iCloud key-value store).
 /// Placed in CarbShared so all targets (app, widget, watch, Siri) can access it.
+///
+/// Data flows entirely through the MethodChannel: Flutter serializes data on push
+/// and writes it back to SharedPreferences on pull. This avoids UserDefaults domain
+/// mismatches between the Flutter SharedPreferences store and the App Group store.
 public final class CloudSyncStore {
     public static let shared = CloudSyncStore()
 
     private let kvStore = NSUbiquitousKeyValueStore.default
-    private let defaults = UserDefaults(suiteName: CarbDataStore.appGroupID)
 
     /// Keys synced to iCloud — must match StorageKeys in Dart
     private enum Key {
@@ -18,13 +21,13 @@ public final class CloudSyncStore {
         static let lastModified = "cloud_last_modified"
     }
 
-    /// All syncable keys (excluding the timestamp itself)
-    private static let syncKeys = [
+    /// All data keys (excluding the timestamp)
+    private static let dataKeys = [
         Key.foodItems, Key.savedFoods, Key.dailyCarbGoal,
         Key.dailyResetHour, Key.lastSaveDate,
     ]
 
-    private var onChange: (() -> Void)?
+    private var onChange: (([String: Any]) -> Void)?
     private var observing = false
 
     private init() {}
@@ -35,61 +38,50 @@ public final class CloudSyncStore {
         FileManager.default.ubiquityIdentityToken != nil
     }
 
-    // MARK: - Push (local → cloud)
+    // MARK: - Push (Flutter → iCloud)
 
-    /// Reads from App Group UserDefaults and writes to iCloud KVStore.
-    public func pushToCloud() {
-        guard isAvailable, let defaults = defaults else { return }
+    /// Writes the data dict received from Flutter directly into iCloud KV store.
+    /// Flutter is responsible for providing all syncable keys.
+    public func pushToCloud(_ data: [String: Any]) {
+        guard isAvailable else { return }
 
         let timestamp = ISO8601DateFormatter().string(from: Date())
 
-        for key in Self.syncKeys {
-            if let value = defaults.object(forKey: key) {
-                kvStore.set(value, forKey: key)
-            } else {
-                // Propagate local deletions to cloud so removed items don't
-                // reappear on other devices during the next pull.
-                kvStore.removeObject(forKey: key)
-            }
+        for (key, value) in data {
+            kvStore.set(value, forKey: key)
         }
         kvStore.set(timestamp, forKey: Key.lastModified)
         kvStore.synchronize()
     }
 
-    // MARK: - Pull (cloud → local)
+    // MARK: - Pull (iCloud → Flutter)
 
-    /// Reads from iCloud KVStore and writes to App Group UserDefaults if cloud is newer.
-    /// Returns a dictionary of the pulled data, or nil if local was already up to date.
+    /// Reads all data from iCloud KV store and returns it so Flutter can write
+    /// it to SharedPreferences. Returns nil if iCloud is unavailable or empty.
     @discardableResult
     public func pullFromCloud() -> [String: Any]? {
-        guard isAvailable, let defaults = defaults else { return nil }
+        guard isAvailable else { return nil }
 
         kvStore.synchronize()
 
-        let cloudTimestamp = kvStore.string(forKey: Key.lastModified) ?? ""
-        let localTimestamp = defaults.string(forKey: Key.lastModified) ?? ""
+        guard let timestamp = kvStore.string(forKey: Key.lastModified),
+              !timestamp.isEmpty else { return nil }
 
-        // Only overwrite local if cloud has newer data
-        guard !cloudTimestamp.isEmpty, cloudTimestamp > localTimestamp else { return nil }
+        var pulled: [String: Any] = [Key.lastModified: timestamp]
 
-        var pulled: [String: Any] = [:]
-
-        for key in Self.syncKeys {
+        for key in Self.dataKeys {
             if let value = kvStore.object(forKey: key) {
-                defaults.set(value, forKey: key)
                 pulled[key] = value
             }
         }
-        defaults.set(cloudTimestamp, forKey: Key.lastModified)
-        pulled[Key.lastModified] = cloudTimestamp
 
         return pulled
     }
 
     // MARK: - Observe remote changes
 
-    /// Start listening for changes pushed from other devices.
-    public func startObserving(onChange: @escaping () -> Void) {
+    /// Start listening for data pushed from other devices.
+    public func startObserving(onChange: @escaping ([String: Any]) -> Void) {
         self.onChange = onChange
         guard !observing else { return }
         observing = true
@@ -114,10 +106,8 @@ public final class CloudSyncStore {
     }
 
     @objc private func kvStoreDidChange(_ notification: Notification) {
-        // Pull the new data into UserDefaults
-        let didUpdate = pullFromCloud() != nil
-        if didUpdate {
-            onChange?()
+        if let pulled = pullFromCloud() {
+            onChange?(pulled)
         }
     }
 }
