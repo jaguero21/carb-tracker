@@ -134,8 +134,8 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   }
 
   /// Applies a cloud data payload to SharedPreferences then reloads state.
-  /// Only applies food items when [last_save_date] matches today, so that
-  /// stale food from another device doesn't overwrite the current day's list.
+  /// Food items are merged with local items (deduped by loggedAt) so that
+  /// neither device loses its own data when syncing.
   Future<void> _applyCloudData(Map<String, dynamic> data) async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -156,21 +156,61 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
           StorageKeys.savedFoods, data[StorageKeys.savedFoods] as String);
     }
 
-    // Only import food items if the cloud data is from today
+    // Merge cloud food items with local items when both are from today.
+    // Dedup by loggedAt so items logged on either device are preserved.
+    bool pushedMergedList = false;
     final cloudSaveDate = data[StorageKeys.lastSaveDate] as String?;
     if (cloudSaveDate == _todayString() &&
         data[StorageKeys.foodItems] is String) {
-      await prefs.setString(
-          StorageKeys.foodItems, data[StorageKeys.foodItems] as String);
+      final localJson = prefs.getString(StorageKeys.foodItems);
+      final cloudJson = data[StorageKeys.foodItems] as String;
+
+      List<FoodItem> parseItems(String? json) {
+        if (json == null) return [];
+        try {
+          final decoded = jsonDecode(json) as List<dynamic>;
+          return decoded
+              .map((e) => FoodItem.fromJson(e as Map<String, dynamic>))
+              .toList();
+        } catch (_) {
+          return [];
+        }
+      }
+
+      final localItems = parseItems(localJson);
+      final cloudItems = parseItems(cloudJson);
+
+      // Combine, dedup by loggedAt timestamp, sort newest-first.
+      final seen = <String>{};
+      final merged = <FoodItem>[];
+      for (final item in [...cloudItems, ...localItems]) {
+        if (seen.add(item.loggedAt.toIso8601String())) merged.add(item);
+      }
+      merged.sort((a, b) => b.loggedAt.compareTo(a.loggedAt));
+
+      final mergedJson = jsonEncode(merged.map((f) => f.toJson()).toList());
+      await prefs.setString(StorageKeys.foodItems, mergedJson);
       await prefs.setString(StorageKeys.lastSaveDate, cloudSaveDate!);
+
+      // If we had local items not in the cloud list, push the merged list back
+      // so the other device also receives them.
+      if (merged.length > cloudItems.length &&
+          _premiumService.isCloudSyncEnabled) {
+        _cloudSyncService.pushToCloud({
+          ...data,
+          StorageKeys.foodItems: mergedJson,
+          StorageKeys.cloudLastModified: DateTime.now().toIso8601String(),
+        });
+        pushedMergedList = true;
+      }
     }
 
-    if (data[StorageKeys.cloudLastModified] is String) {
+    if (!pushedMergedList && data[StorageKeys.cloudLastModified] is String) {
       await prefs.setString(StorageKeys.cloudLastModified,
           data[StorageKeys.cloudLastModified] as String);
     }
 
-    if (mounted) _loadSavedData();
+    if (mounted) await _loadSavedData();
   }
 
   @override
