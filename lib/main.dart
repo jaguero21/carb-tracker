@@ -762,16 +762,17 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   }
 
   Widget _buildMacroStrip(bool isDark) {
-    final protein = foodItems.fold(0.0, (s, i) => s + (i.protein ?? 0));
-    final fat = foodItems.fold(0.0, (s, i) => s + (i.fat ?? 0));
-    final fiber = foodItems.fold(0.0, (s, i) => s + (i.fiber ?? 0));
-    final calories = foodItems.fold(0.0, (s, i) => s + (i.calories ?? 0));
+    var protein = 0.0, fat = 0.0, fiber = 0.0, calories = 0.0;
+    for (final i in foodItems) {
+      protein += i.protein ?? 0;
+      fat += i.fat ?? 0;
+      fiber += i.fiber ?? 0;
+      calories += i.calories ?? 0;
+    }
 
     Widget col(String label, double value, double? goal, {bool isCalories = false}) {
       final unit = isCalories ? '' : 'g';
-      final valueStr = isCalories
-          ? value.toStringAsFixed(0)
-          : value.toStringAsFixed(0);
+      final valueStr = value.toStringAsFixed(0);
       final goalStr = goal != null
           ? (isCalories ? ' / ${goal.toStringAsFixed(0)}' : ' / ${goal.toStringAsFixed(0)}g')
           : null;

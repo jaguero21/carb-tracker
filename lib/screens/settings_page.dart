@@ -219,16 +219,20 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _loadMacroGoals() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      final p = prefs.getDouble(StorageKeys.proteinGoal);
-      final f = prefs.getDouble(StorageKeys.fatGoal);
-      final fi = prefs.getDouble(StorageKeys.fiberGoal);
-      final c = prefs.getDouble(StorageKeys.caloriesGoal);
-      _proteinGoalController.text = p != null ? p.toStringAsFixed(0) : '';
-      _fatGoalController.text = f != null ? f.toStringAsFixed(0) : '';
-      _fiberGoalController.text = fi != null ? fi.toStringAsFixed(0) : '';
-      _caloriesGoalController.text = c != null ? c.toStringAsFixed(0) : '';
-    });
+    final p = prefs.getDouble(StorageKeys.proteinGoal);
+    final f = prefs.getDouble(StorageKeys.fatGoal);
+    final fi = prefs.getDouble(StorageKeys.fiberGoal);
+    final c = prefs.getDouble(StorageKeys.caloriesGoal);
+    _proteinGoalController.text = p != null ? p.toStringAsFixed(0) : '';
+    _fatGoalController.text = f != null ? f.toStringAsFixed(0) : '';
+    _fiberGoalController.text = fi != null ? fi.toStringAsFixed(0) : '';
+    _caloriesGoalController.text = c != null ? c.toStringAsFixed(0) : '';
+  }
+
+  Future<void> _savePrefGoal(SharedPreferences prefs, String key, double? value) {
+    return value != null
+        ? prefs.setDouble(key, value)
+        : prefs.remove(key);
   }
 
   double? _parseMacroGoal(TextEditingController c) {
@@ -269,26 +273,12 @@ class _SettingsPageState extends State<SettingsPage> {
     final calories = _parseMacroGoal(_caloriesGoalController);
 
     final prefs = await SharedPreferences.getInstance();
-    if (protein != null) {
-      await prefs.setDouble(StorageKeys.proteinGoal, protein);
-    } else {
-      await prefs.remove(StorageKeys.proteinGoal);
-    }
-    if (fat != null) {
-      await prefs.setDouble(StorageKeys.fatGoal, fat);
-    } else {
-      await prefs.remove(StorageKeys.fatGoal);
-    }
-    if (fiber != null) {
-      await prefs.setDouble(StorageKeys.fiberGoal, fiber);
-    } else {
-      await prefs.remove(StorageKeys.fiberGoal);
-    }
-    if (calories != null) {
-      await prefs.setDouble(StorageKeys.caloriesGoal, calories);
-    } else {
-      await prefs.remove(StorageKeys.caloriesGoal);
-    }
+    await Future.wait([
+      _savePrefGoal(prefs, StorageKeys.proteinGoal, protein),
+      _savePrefGoal(prefs, StorageKeys.fatGoal, fat),
+      _savePrefGoal(prefs, StorageKeys.fiberGoal, fiber),
+      _savePrefGoal(prefs, StorageKeys.caloriesGoal, calories),
+    ]);
 
     final result = SettingsResult(
       dailyCarbGoal: _parseGoal(),
@@ -891,7 +881,8 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _buildMacroGoalsCard(ColorScheme colorScheme, bool isDark) {
-    Widget field(String label, String hint, TextEditingController controller) {
+    Widget field(String label, String hint, TextEditingController controller,
+        {bool isCalories = false}) {
       return Padding(
         padding: const EdgeInsets.only(bottom: 12),
         child: Row(
@@ -913,7 +904,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 textInputAction: TextInputAction.next,
                 decoration: InputDecoration(
                   hintText: hint,
-                  suffixText: label == 'Calories' ? 'kcal' : 'g',
+                  suffixText: isCalories ? 'kcal' : 'g',
                   isDense: true,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,
@@ -976,7 +967,7 @@ class _SettingsPageState extends State<SettingsPage> {
           field('Protein', 'e.g. 120', _proteinGoalController),
           field('Fat', 'e.g. 65', _fatGoalController),
           field('Fiber', 'e.g. 25', _fiberGoalController),
-          field('Calories', 'e.g. 2000', _caloriesGoalController),
+          field('Calories', 'e.g. 2000', _caloriesGoalController, isCalories: true),
         ],
       ),
     );
