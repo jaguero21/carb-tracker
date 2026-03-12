@@ -50,17 +50,17 @@ class PerplexityFirebaseService {
             'No food items found. Please try a different description.');
       }
 
+      double? parseOptional(dynamic v) {
+        if (v == null) return null;
+        if (v is num) return v.toDouble();
+        return double.tryParse(v.toString());
+      }
+
       return items.map((item) {
         final carbsRaw = item['carbs'];
         final carbs = carbsRaw is num
             ? carbsRaw.toDouble()
             : double.tryParse(carbsRaw.toString()) ?? 0.0;
-
-        double? parseOptional(dynamic v) {
-          if (v == null) return null;
-          if (v is num) return v.toDouble();
-          return double.tryParse(v.toString());
-        }
 
         return FoodItem(
           name: (item['name'] as String?) ?? 'Unknown',

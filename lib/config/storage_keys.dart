@@ -33,6 +33,12 @@ class StorageKeys {
   static const String premiumCloudSync = 'premium_cloud_sync';
   static const String premiumMacros = 'premium_macros';
 
+  // Macro goals
+  static const String proteinGoal = 'protein_goal';
+  static const String fatGoal = 'fat_goal';
+  static const String fiberGoal = 'fiber_goal';
+  static const String caloriesGoal = 'calories_goal';
+
   // Cloud sync
   static const String cloudLastModified = 'cloud_last_modified';
 }

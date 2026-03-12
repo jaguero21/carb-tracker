@@ -77,8 +77,14 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   bool isLoading = false;
   bool showingDailyTotal = false;
   double? dailyCarbGoal;
+  double? proteinGoal;
+  double? fatGoal;
+  double? fiberGoal;
+  double? caloriesGoal;
   int resetHour = 0;
   int _currentPage = 0; // 0 = home, 1 = settings
+  int _loadSavedDataToken = 0;
+  int _importSiriItemsToken = 0;
 
   @override
   void initState() {
@@ -126,47 +132,118 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       StorageKeys.dailyCarbGoal: dailyCarbGoal ?? 0.0,
       StorageKeys.dailyResetHour: resetHour,
       StorageKeys.lastSaveDate: _todayString(),
+      StorageKeys.proteinGoal: proteinGoal ?? 0.0,
+      StorageKeys.fatGoal: fatGoal ?? 0.0,
+      StorageKeys.fiberGoal: fiberGoal ?? 0.0,
+      StorageKeys.caloriesGoal: caloriesGoal ?? 0.0,
     };
   }
 
   /// Applies a cloud data payload to SharedPreferences then reloads state.
-  /// Only applies food items when [last_save_date] matches today, so that
-  /// stale food from another device doesn't overwrite the current day's list.
+  /// Food items and favorites are merged with local data (not replaced) so that
+  /// neither device loses its own data when syncing.
   Future<void> _applyCloudData(Map<String, dynamic> data) async {
     final prefs = await SharedPreferences.getInstance();
 
-    final goal = data[StorageKeys.dailyCarbGoal];
-    if (goal is num && goal.toDouble() > 0) {
-      await prefs.setDouble(StorageKeys.dailyCarbGoal, goal.toDouble());
-    } else if (goal is num) {
-      await prefs.remove(StorageKeys.dailyCarbGoal);
+    // ── Goals ──
+    void applyGoal(String key, dynamic val) {
+      if (val is num && val.toDouble() > 0) {
+        prefs.setDouble(key, val.toDouble());
+      } else if (val is num) {
+        prefs.remove(key);
+      }
     }
+
+    applyGoal(StorageKeys.dailyCarbGoal, data[StorageKeys.dailyCarbGoal]);
+    applyGoal(StorageKeys.proteinGoal, data[StorageKeys.proteinGoal]);
+    applyGoal(StorageKeys.fatGoal, data[StorageKeys.fatGoal]);
+    applyGoal(StorageKeys.fiberGoal, data[StorageKeys.fiberGoal]);
+    applyGoal(StorageKeys.caloriesGoal, data[StorageKeys.caloriesGoal]);
 
     final resetHourVal = data[StorageKeys.dailyResetHour];
     if (resetHourVal is num) {
       await prefs.setInt(StorageKeys.dailyResetHour, resetHourVal.toInt());
     }
 
+    // ── Favorites: merge by name so neither device loses saved foods ──
     if (data[StorageKeys.savedFoods] is String) {
-      await prefs.setString(
-          StorageKeys.savedFoods, data[StorageKeys.savedFoods] as String);
+      List<FoodItem> parseFavorites(String? json) {
+        if (json == null || json.isEmpty) return [];
+        try {
+          final decoded = jsonDecode(json) as List<dynamic>;
+          return decoded
+              .map((e) => FoodItem.fromJson(e as Map<String, dynamic>))
+              .toList();
+        } catch (_) {
+          return [];
+        }
+      }
+
+      final localFavs = parseFavorites(prefs.getString(StorageKeys.savedFoods));
+      final cloudFavs = parseFavorites(data[StorageKeys.savedFoods] as String);
+      final seen = <String>{};
+      final mergedFavs = <FoodItem>[];
+      for (final item in [...cloudFavs, ...localFavs]) {
+        if (seen.add(item.name.toLowerCase())) mergedFavs.add(item);
+      }
+      await prefs.setString(StorageKeys.savedFoods,
+          jsonEncode(mergedFavs.map((f) => f.toJson()).toList()));
     }
 
-    // Only import food items if the cloud data is from today
+    // ── Food items: merge by loggedAt so both devices' logs are preserved ──
+    bool pushedMergedList = false;
     final cloudSaveDate = data[StorageKeys.lastSaveDate] as String?;
     if (cloudSaveDate == _todayString() &&
         data[StorageKeys.foodItems] is String) {
-      await prefs.setString(
-          StorageKeys.foodItems, data[StorageKeys.foodItems] as String);
+      List<FoodItem> parseItems(String? json) {
+        if (json == null) return [];
+        try {
+          final decoded = jsonDecode(json) as List<dynamic>;
+          return decoded
+              .map((e) => FoodItem.fromJson(e as Map<String, dynamic>))
+              .toList();
+        } catch (_) {
+          return [];
+        }
+      }
+
+      final localItems = parseItems(prefs.getString(StorageKeys.foodItems));
+      final cloudItems = parseItems(data[StorageKeys.foodItems] as String);
+
+      // Combine, dedup by loggedAt timestamp, sort newest-first.
+      final seen = <String>{};
+      final merged = <FoodItem>[];
+      for (final item in [...cloudItems, ...localItems]) {
+        if (seen.add(item.loggedAt.toIso8601String())) merged.add(item);
+      }
+      merged.sort((a, b) => b.loggedAt.compareTo(a.loggedAt));
+
+      final mergedJson = jsonEncode(merged.map((f) => f.toJson()).toList());
+      await prefs.setString(StorageKeys.foodItems, mergedJson);
       await prefs.setString(StorageKeys.lastSaveDate, cloudSaveDate!);
+
+      // If we contributed local items the cloud didn't have, push the merged
+      // list back so the other device also receives them.
+      if (merged.length > cloudItems.length &&
+          _premiumService.isCloudSyncEnabled) {
+        final newTs = DateTime.now().toIso8601String();
+        _cloudSyncService.pushToCloud({
+          ...data,
+          StorageKeys.foodItems: mergedJson,
+          StorageKeys.cloudLastModified: newTs,
+        });
+        // Save the new timestamp locally so we don't re-apply on next resume.
+        await prefs.setString(StorageKeys.cloudLastModified, newTs);
+        pushedMergedList = true;
+      }
     }
 
-    if (data[StorageKeys.cloudLastModified] is String) {
+    if (!pushedMergedList && data[StorageKeys.cloudLastModified] is String) {
       await prefs.setString(StorageKeys.cloudLastModified,
           data[StorageKeys.cloudLastModified] as String);
     }
 
-    if (mounted) _loadSavedData();
+    if (mounted) await _loadSavedData();
   }
 
   @override
@@ -210,10 +287,16 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   }
 
   Future<void> _loadSavedData() async {
+    final token = ++_loadSavedDataToken;
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted || token != _loadSavedDataToken) return;
     final savedGoal = prefs.getDouble(StorageKeys.dailyCarbGoal);
     final savedResetHour = prefs.getInt(StorageKeys.dailyResetHour) ?? 0;
     resetHour = savedResetHour;
+    proteinGoal = prefs.getDouble(StorageKeys.proteinGoal);
+    fatGoal = prefs.getDouble(StorageKeys.fatGoal);
+    fiberGoal = prefs.getDouble(StorageKeys.fiberGoal);
+    caloriesGoal = prefs.getDouble(StorageKeys.caloriesGoal);
     final lastSaveDate = prefs.getString(StorageKeys.lastSaveDate);
     final isNewDay = lastSaveDate != null && lastSaveDate != _todayString();
 
@@ -229,6 +312,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       await HomeWidget.saveWidgetData<double>(
           StorageKeys.widgetLastFoodCarbs, 0.0);
       await HomeWidget.updateWidget(iOSName: StorageKeys.widgetName);
+      if (!mounted || token != _loadSavedDataToken) return;
       setState(() {
         foodItems = [];
         dailyCarbGoal = savedGoal;
@@ -250,6 +334,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       }
     }
 
+    if (!mounted || token != _loadSavedDataToken) return;
     setState(() {
       foodItems = loadedItems;
       dailyCarbGoal = savedGoal;
@@ -260,8 +345,10 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   }
 
   Future<void> _importSiriLoggedItems() async {
+    final token = ++_importSiriItemsToken;
     final siriItemsJson = await HomeWidget.getWidgetData<String>(
         StorageKeys.widgetSiriLoggedItems);
+    if (!mounted || token != _importSiriItemsToken) return;
     if (siriItemsJson == null) return;
 
     try {
@@ -288,6 +375,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
         ));
       }
       for (final foodItem in newItems) {
+        if (!mounted || token != _importSiriItemsToken) return;
         setState(() {
           foodItems.insert(0, foodItem);
         });
@@ -724,6 +812,10 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     setState(() {
       dailyCarbGoal = result.dailyCarbGoal;
       resetHour = result.resetHour;
+      proteinGoal = result.proteinGoal;
+      fatGoal = result.fatGoal;
+      fiberGoal = result.fiberGoal;
+      caloriesGoal = result.caloriesGoal;
     });
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(StorageKeys.dailyResetHour, resetHour);
@@ -750,21 +842,44 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   }
 
   Widget _buildMacroStrip(bool isDark) {
-    final protein = foodItems.fold(0.0, (s, i) => s + (i.protein ?? 0));
-    final fat = foodItems.fold(0.0, (s, i) => s + (i.fat ?? 0));
-    final fiber = foodItems.fold(0.0, (s, i) => s + (i.fiber ?? 0));
-    final calories = foodItems.fold(0.0, (s, i) => s + (i.calories ?? 0));
+    var protein = 0.0, fat = 0.0, fiber = 0.0, calories = 0.0;
+    for (final i in foodItems) {
+      protein += i.protein ?? 0;
+      fat += i.fat ?? 0;
+      fiber += i.fiber ?? 0;
+      calories += i.calories ?? 0;
+    }
 
-    Widget col(String label, String value) {
+    Widget col(String label, double value, double? goal, {bool isCalories = false}) {
+      final unit = isCalories ? '' : 'g';
+      final valueStr = value.toStringAsFixed(0);
+      final goalStr = goal != null
+          ? (isCalories ? ' / ${goal.toStringAsFixed(0)}' : ' / ${goal.toStringAsFixed(0)}g')
+          : null;
+
       return Expanded(
         child: Column(
           children: [
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Theme.of(context).colorScheme.onSurface,
+            RichText(
+              text: TextSpan(
+                children: [
+                  TextSpan(
+                    text: '$valueStr$unit',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                  if (goalStr != null)
+                    TextSpan(
+                      text: goalStr,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                ],
               ),
             ),
             const SizedBox(height: 2),
@@ -804,13 +919,13 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       ),
       child: Row(
         children: [
-          col('Protein', '${protein.toStringAsFixed(0)}g'),
+          col('Protein', protein, proteinGoal),
           divider(),
-          col('Fat', '${fat.toStringAsFixed(0)}g'),
+          col('Fat', fat, fatGoal),
           divider(),
-          col('Fiber', '${fiber.toStringAsFixed(0)}g'),
+          col('Fiber', fiber, fiberGoal),
           divider(),
-          col('Calories', calories.toStringAsFixed(0)),
+          col('Calories', calories, caloriesGoal, isCalories: true),
         ],
       ),
     );
@@ -1381,6 +1496,8 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
 
   @override
   void dispose() {
+    _loadSavedDataToken++;
+    _importSiriItemsToken++;
     WidgetsBinding.instance.removeObserver(this);
     _cloudSyncService.stopListening();
     _foodController.dispose();
