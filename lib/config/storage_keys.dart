@@ -5,7 +5,7 @@ class StorageKeys {
   StorageKeys._();
 
   // App group identifier (must match Runner.entitlements)
-  static const String appGroupId = 'group.com.jamesaguero.mycarbtracker';
+  static const String appGroupId = 'group.com.carpecarb.shared';
 
   // SharedPreferences keys (local to Flutter)
   static const String totalCarbs = 'total_carbs';

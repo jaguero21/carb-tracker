@@ -4,7 +4,7 @@ import WidgetKit
 #endif
 
 public struct CarbDataStore {
-    public static let appGroupID = "group.com.jamesaguero.mycarbtracker"
+    public static let appGroupID = "group.com.carpecarb.shared"
 
     // UserDefaults key constants — must match StorageKeys in Dart
     public struct Keys {

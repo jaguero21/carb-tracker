@@ -102,7 +102,7 @@ struct ContentView: View {
     }
 
     private func loadData() {
-        let defaults = UserDefaults(suiteName: "group.com.jamesaguero.mycarbtracker")
+        let defaults = UserDefaults(suiteName: "group.com.carpecarb.shared")
         totalCarbs = defaults?.double(forKey: "totalCarbs") ?? 0.0
         lastFoodName = defaults?.string(forKey: "lastFoodName") ?? ""
         lastFoodCarbs = defaults?.double(forKey: "lastFoodCarbs") ?? 0.0
