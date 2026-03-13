@@ -1,5 +1,12 @@
 import WidgetKit
 import SwiftUI
+import os.log
+
+// MARK: - Logger
+
+private let logger = Logger(subsystem: "com.carpecarb", category: "CarbWiseWidget")
+
+// MARK: - Widget Data
 
 struct CarbWidgetData {
     let totalCarbs: Double
@@ -22,31 +29,86 @@ struct CarbWidgetData {
     )
 }
 
+// MARK: - Timeline Provider
+
 struct CarbWiseProvider: TimelineProvider {
     func placeholder(in context: Context) -> CarbWiseEntry {
-        CarbWiseEntry(date: Date(), data: .placeholder)
+        logger.debug("📊 Placeholder requested for widget family: \(String(describing: context.family))")
+        return CarbWiseEntry(date: Date(), data: .placeholder)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (CarbWiseEntry) -> Void) {
-        completion(CarbWiseEntry(date: Date(), data: loadData()))
+        logger.info("📸 Snapshot requested (preview: \(context.isPreview ? "YES" : "NO"))")
+        
+        let data = loadData()
+        logWidgetData(data, context: "snapshot")
+        
+        completion(CarbWiseEntry(date: Date(), data: data))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<CarbWiseEntry>) -> Void) {
-        let entry = CarbWiseEntry(date: Date(), data: loadData())
-        let refreshDate = Calendar.current.date(byAdding: .minute, value: 15, to: Date())!
+        logger.info("⏰ Timeline requested for widget family: \(String(describing: context.family))")
+        
+        let currentDate = Date()
+        let data = loadData()
+        logWidgetData(data, context: "timeline")
+        
+        let entry = CarbWiseEntry(date: currentDate, data: data)
+        
+        // Refresh every 15 minutes
+        let refreshDate = Calendar.current.date(byAdding: .minute, value: 15, to: currentDate) ?? currentDate.addingTimeInterval(900)
+        logger.debug("Next refresh scheduled for: \(refreshDate.formatted())")
+        
         let timeline = Timeline(entries: [entry], policy: .after(refreshDate))
         completion(timeline)
     }
 
     private func loadData() -> CarbWidgetData {
-        let defaults = UserDefaults(suiteName: "group.com.jamesaguero.mycarbtracker")
-        let goalValue = defaults?.double(forKey: "dailyCarbGoal") ?? 0.0
+        logger.debug("📖 Loading widget data from App Group")
+        
+        // Validate App Group configuration
+        guard AppGroupConfig.isValid else {
+            logger.error("❌ App Group '\(AppGroupConfig.identifier)' is not properly configured")
+            logger.error("   Check Xcode → Signing & Capabilities → App Groups")
+            return .empty
+        }
+        
+        guard let defaults = AppGroupConfig.sharedDefaults else {
+            logger.error("❌ Failed to access App Group UserDefaults")
+            return .empty
+        }
+        
+        // Use centralized keys for consistency
+        let totalCarbs = defaults.double(forKey: AppGroupConfig.Keys.totalCarbs)
+        let lastFoodName = defaults.string(forKey: AppGroupConfig.Keys.lastFoodName) ?? ""
+        let lastFoodCarbs = defaults.double(forKey: AppGroupConfig.Keys.lastFoodCarbs)
+        let goalValue = defaults.double(forKey: AppGroupConfig.Keys.dailyCarbGoal)
+        
+        logger.debug("   App Group ID: '\(AppGroupConfig.identifier)'")
+        logger.debug("   Total carbs: \(totalCarbs)g")
+        logger.debug("   Last food: '\(lastFoodName.isEmpty ? "(none)" : lastFoodName)' (\(lastFoodCarbs)g)")
+        logger.debug("   Daily goal: \(goalValue > 0 ? "\(goalValue)g" : "(not set)")")
+        
         return CarbWidgetData(
-            totalCarbs: defaults?.double(forKey: "totalCarbs") ?? 0.0,
-            lastFoodName: defaults?.string(forKey: "lastFoodName") ?? "",
-            lastFoodCarbs: defaults?.double(forKey: "lastFoodCarbs") ?? 0.0,
+            totalCarbs: totalCarbs,
+            lastFoodName: lastFoodName,
+            lastFoodCarbs: lastFoodCarbs,
             dailyGoal: goalValue > 0 ? goalValue : nil
         )
+    }
+    
+    private func logWidgetData(_ data: CarbWidgetData, context: String) {
+        if let goal = data.dailyGoal {
+            let remaining = goal - data.totalCarbs
+            let percentage = (data.totalCarbs / goal) * 100
+            logger.info("📊 Widget data (\(context)): \(data.totalCarbs)g / \(goal)g (\(String(format: "%.0f", percentage))%) - \(remaining)g remaining")
+        } else {
+            logger.info("📊 Widget data (\(context)): \(data.totalCarbs)g total (no goal set)")
+        }
+        
+        if !data.lastFoodName.isEmpty {
+            logger.debug("   Last logged: \(data.lastFoodName) (\(data.lastFoodCarbs)g)")
+        }
     }
 }
 

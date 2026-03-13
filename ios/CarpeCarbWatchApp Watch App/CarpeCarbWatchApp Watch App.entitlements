@@ -8,8 +8,7 @@
 	<string>$(TeamIdentifierPrefix)com.jamesaguero.mycarbtracker</string>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.com.jamesaguero.carbtracker</string>
-		<string>group.com.jamesaguero.mycarbtracker</string>
+		<string>group.com.carpecarb.shared</string>
 	</array>
 </dict>
 </plist>

@@ -12,6 +12,14 @@ let package = Package(
         .library(name: "CarbShared", targets: ["CarbShared"]),
     ],
     targets: [
-        .target(name: "CarbShared"),
+        .target(
+            name: "CarbShared",
+            path: "Sources/CarbShared"
+        ),
+        .testTarget(
+            name: "CarbSharedTests",
+            dependencies: ["CarbShared"],
+            path: "Tests/CarbSharedTests"
+        ),
     ]
 )

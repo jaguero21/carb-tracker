@@ -60,6 +60,9 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   int _selectedTab = 0;
+  int _savedFoodsLoadToken = 0;
+  int _historyLoadToken = 0;
+  int _macroGoalsLoadToken = 0;
 
   // Goal state
   late TextEditingController _goalController;
@@ -117,6 +120,9 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   void dispose() {
+    _savedFoodsLoadToken++;
+    _historyLoadToken++;
+    _macroGoalsLoadToken++;
     _goalController.dispose();
     _proteinGoalController.dispose();
     _fatGoalController.dispose();
@@ -128,7 +134,9 @@ class _SettingsPageState extends State<SettingsPage> {
   // ── Favorites ──
 
   Future<void> _loadSavedFoods() async {
+    final token = ++_savedFoodsLoadToken;
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted || token != _savedFoodsLoadToken) return;
     final savedJson = prefs.getString(StorageKeys.savedFoods);
     if (savedJson != null) {
       final List<dynamic> decoded = jsonDecode(savedJson);
@@ -183,10 +191,13 @@ class _SettingsPageState extends State<SettingsPage> {
   // ── History ──
 
   Future<void> _loadHistory() async {
+    final token = ++_historyLoadToken;
     final hs = widget.healthKitService!;
     final hasPerms = await hs.hasPermissions();
+    if (!mounted || token != _historyLoadToken) return;
     if (!hasPerms) {
       final granted = await hs.requestAuthorization();
+      if (!mounted || token != _historyLoadToken) return;
       if (!granted) {
         setState(() {
           _isHistoryLoading = false;
@@ -196,6 +207,7 @@ class _SettingsPageState extends State<SettingsPage> {
       }
     }
     final history = await hs.fetchDailyHistory(days: 30);
+    if (!mounted || token != _historyLoadToken) return;
     setState(() {
       _dailyHistory = history;
       _isHistoryLoading = false;
@@ -218,7 +230,9 @@ class _SettingsPageState extends State<SettingsPage> {
   // ── Goals ──
 
   Future<void> _loadMacroGoals() async {
+    final token = ++_macroGoalsLoadToken;
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted || token != _macroGoalsLoadToken) return;
     final p = prefs.getDouble(StorageKeys.proteinGoal);
     final f = prefs.getDouble(StorageKeys.fatGoal);
     final fi = prefs.getDouble(StorageKeys.fiberGoal);
@@ -1075,6 +1089,7 @@ class _SettingsPageState extends State<SettingsPage> {
           isDark: isDark,
           onChanged: (v) async {
             await ps?.setFeatureEnabled(StorageKeys.premiumManualEntry, v);
+            if (!mounted) return;
             setState(() {});
           },
         ),
@@ -1087,6 +1102,7 @@ class _SettingsPageState extends State<SettingsPage> {
           isDark: isDark,
           onChanged: (v) async {
             await ps?.setFeatureEnabled(StorageKeys.premiumHealthSync, v);
+            if (!mounted) return;
             setState(() {});
           },
         ),
@@ -1116,6 +1132,7 @@ class _SettingsPageState extends State<SettingsPage> {
             } else {
               await widget.cloudSyncService?.stopListening();
             }
+            if (!mounted) return;
             setState(() {});
           },
         ),
@@ -1128,6 +1145,7 @@ class _SettingsPageState extends State<SettingsPage> {
           isDark: isDark,
           onChanged: (v) async {
             await ps?.setFeatureEnabled(StorageKeys.premiumMacros, v);
+            if (!mounted) return;
             setState(() {});
           },
         ),

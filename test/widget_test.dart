@@ -7,6 +7,11 @@ import 'package:carb_tracker/main.dart';
 import 'package:carb_tracker/models/food_item.dart';
 
 void main() {
+  String todayKey() {
+    final now = DateTime.now();
+    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+  }
+
   // Setup SharedPreferences mock before tests
   setUp(() {
     SharedPreferences.setMockInitialValues({});
@@ -182,7 +187,7 @@ void main() {
       SharedPreferences.setMockInitialValues({
         'food_items':
             '[{"name":"Saved Item","carbs":42.5,"loggedAt":"2026-03-09T10:00:00.000","category":"snack"}]',
-        'last_save_date': '2026-03-09',
+        'last_save_date': todayKey(),
       });
 
       await tester.pumpWidget(const CarbTrackerApp());
@@ -224,7 +229,7 @@ void main() {
           '[{"name":"Breakfast","carbs":45.0,"loggedAt":"2026-03-09T08:00:00.000","category":"breakfast"},'
           '{"name":"Lunch","carbs":60.0,"loggedAt":"2026-03-09T12:00:00.000","category":"lunch"}]';
       await prefs.setString('food_items', foodItemsJson);
-      await prefs.setString('last_save_date', '2026-03-09');
+        await prefs.setString('last_save_date', todayKey());
 
       // Verify in-memory total before restart.
       expect(state.totalCarbs, 105.0);

@@ -1,29 +1,34 @@
-import Testing
-import Foundation
+import XCTest
 @testable import CarbShared
 
-@Suite("CloudSyncStore Tests")
-struct CloudSyncStoreTests {
+/// Tests for CloudSyncStore iCloud key-value store functionality
+final class CloudSyncStoreTests: XCTestCase {
+    
+    var store: CloudSyncStore!
+    
+    override func setUp() {
+        super.setUp()
+        store = CloudSyncStore.shared
+    }
+    
+    override func tearDown() {
+        store.stopObserving()
+        super.tearDown()
+    }
     
     // MARK: - Availability Tests
     
-    @Test("iCloud availability check")
-    func testAvailability() async throws {
-        let store = CloudSyncStore.shared
-        
+    func testAvailability() {
         // Note: In a test environment, iCloud may not be available
         // This test verifies the check doesn't crash
         let isAvailable = store.isAvailable
         
-        #expect(isAvailable == true || isAvailable == false, "Should return a boolean value")
+        XCTAssertTrue(isAvailable || !isAvailable, "Should return a boolean value")
     }
     
     // MARK: - Push/Pull Tests
     
-    @Test("Push data to cloud")
-    func testPushToCloud() async throws {
-        let store = CloudSyncStore.shared
-        
+    func testPushToCloud() {
         let testData: [String: Any] = [
             "food_items": ["apple", "banana"],
             "daily_carb_goal": 150.0,
@@ -34,24 +39,18 @@ struct CloudSyncStoreTests {
         store.pushToCloud(testData)
     }
     
-    @Test("Pull data from cloud returns nil when empty")
-    func testPullFromCloudEmpty() async throws {
-        let store = CloudSyncStore.shared
-        
+    func testPullFromCloudWhenEmpty() {
         // This may return nil if iCloud is unavailable or empty
         let result = store.pullFromCloud()
         
         if let data = result {
-            #expect(data["cloud_last_modified"] != nil, "Should contain timestamp if data exists")
+            XCTAssertNotNil(data["cloud_last_modified"], "Should contain timestamp if data exists")
         }
     }
     
     // MARK: - Observer Tests
     
-    @Test("Start and stop observing")
-    func testObserving() async throws {
-        let store = CloudSyncStore.shared
-        
+    func testStartAndStopObserving() {
         var callbackInvoked = false
         
         store.startObserving { data in
@@ -66,10 +65,7 @@ struct CloudSyncStoreTests {
         store.stopObserving()
     }
     
-    @Test("Multiple start observing calls should be safe")
-    func testMultipleObserving() async throws {
-        let store = CloudSyncStore.shared
-        
+    func testMultipleStartObservingCalls() {
         store.startObserving { _ in }
         store.startObserving { _ in } // Second call should be ignored
         
@@ -78,13 +74,9 @@ struct CloudSyncStoreTests {
     
     // MARK: - Data Integrity Tests
     
-    @Test("Push and pull round-trip", .disabled("Requires iCloud to be enabled"))
     func testPushPullRoundTrip() async throws {
-        let store = CloudSyncStore.shared
-        
         guard store.isAvailable else {
-            Issue.record("iCloud not available in test environment")
-            return
+            throw XCTSkip("iCloud not available in test environment")
         }
         
         let testData: [String: Any] = [
@@ -96,25 +88,23 @@ struct CloudSyncStoreTests {
         store.pushToCloud(testData)
         
         // Give iCloud a moment to sync
-        try await Task.sleep(for: .seconds(1))
+        try await Task.sleep(nanoseconds: 1_000_000_000)
         
         let pulledData = store.pullFromCloud()
         
-        #expect(pulledData != nil, "Should retrieve data after push")
+        XCTAssertNotNil(pulledData, "Should retrieve data after push")
         
         if let pulled = pulledData {
-            #expect(pulled["cloud_last_modified"] != nil, "Should have timestamp")
-            #expect(pulled["food_items"] != nil, "Should contain food_items")
+            XCTAssertNotNil(pulled["cloud_last_modified"], "Should have timestamp")
+            XCTAssertNotNil(pulled["food_items"], "Should contain food_items")
         }
     }
 }
 
-// MARK: - Mock Tests for Integration
+// MARK: - Integration Tests
 
-@Suite("CloudSync Integration Tests")
-struct CloudSyncIntegrationTests {
+final class CloudSyncIntegrationTests: XCTestCase {
     
-    @Test("Verify all storage keys are handled")
     func testStorageKeysCoverage() {
         let expectedKeys = [
             "food_items",
@@ -126,11 +116,10 @@ struct CloudSyncIntegrationTests {
         
         // This test documents the expected keys
         // If you add new keys, update this test
-        #expect(expectedKeys.count == 5, "Should have exactly 5 data keys")
+        XCTAssertEqual(expectedKeys.count, 5, "Should have exactly 5 data keys")
     }
     
-    @Test("Timestamp format validation")
-    func testTimestampFormat() throws {
+    func testTimestampFormat() {
         let formatter = ISO8601DateFormatter()
         let date = Date()
         let timestamp = formatter.string(from: date)
@@ -138,6 +127,21 @@ struct CloudSyncIntegrationTests {
         // Verify we can parse it back
         let parsed = formatter.date(from: timestamp)
         
-        #expect(parsed != nil, "Should be able to parse ISO8601 timestamp")
+        XCTAssertNotNil(parsed, "Should be able to parse ISO8601 timestamp")
+    }
+    
+    func testTimestampRoundTrip() {
+        let formatter = ISO8601DateFormatter()
+        let originalDate = Date()
+        let timestamp = formatter.string(from: originalDate)
+        let parsedDate = formatter.date(from: timestamp)
+        
+        XCTAssertNotNil(parsedDate, "Should parse timestamp")
+        
+        if let parsed = parsedDate {
+            // ISO8601 loses sub-second precision, so check within 1 second
+            let timeDifference = abs(originalDate.timeIntervalSince(parsed))
+            XCTAssertLessThan(timeDifference, 1.0, "Dates should be within 1 second")
+        }
     }
 }
