@@ -139,26 +139,41 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     };
   }
 
+  /// Parses a JSON string into a list of FoodItems, returning [] on any error.
+  List<FoodItem> _parseFoodItemJson(String? json) {
+    if (json == null || json.isEmpty) return [];
+    try {
+      final decoded = jsonDecode(json) as List<dynamic>;
+      return decoded
+          .map((e) => FoodItem.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
   /// Applies a cloud data payload to SharedPreferences then reloads state.
   /// Food items and favorites are merged with local data (not replaced) so that
   /// neither device loses its own data when syncing.
   Future<void> _applyCloudData(Map<String, dynamic> data) async {
     final prefs = await SharedPreferences.getInstance();
 
-    // ── Goals ──
-    void applyGoal(String key, dynamic val) {
+    // ── Goals: await each write so _loadSavedData reads current values ──
+    Future<void> applyGoal(String key, dynamic val) async {
       if (val is num && val.toDouble() > 0) {
-        prefs.setDouble(key, val.toDouble());
+        await prefs.setDouble(key, val.toDouble());
       } else if (val is num) {
-        prefs.remove(key);
+        await prefs.remove(key);
       }
     }
 
-    applyGoal(StorageKeys.dailyCarbGoal, data[StorageKeys.dailyCarbGoal]);
-    applyGoal(StorageKeys.proteinGoal, data[StorageKeys.proteinGoal]);
-    applyGoal(StorageKeys.fatGoal, data[StorageKeys.fatGoal]);
-    applyGoal(StorageKeys.fiberGoal, data[StorageKeys.fiberGoal]);
-    applyGoal(StorageKeys.caloriesGoal, data[StorageKeys.caloriesGoal]);
+    await Future.wait([
+      applyGoal(StorageKeys.dailyCarbGoal, data[StorageKeys.dailyCarbGoal]),
+      applyGoal(StorageKeys.proteinGoal, data[StorageKeys.proteinGoal]),
+      applyGoal(StorageKeys.fatGoal, data[StorageKeys.fatGoal]),
+      applyGoal(StorageKeys.fiberGoal, data[StorageKeys.fiberGoal]),
+      applyGoal(StorageKeys.caloriesGoal, data[StorageKeys.caloriesGoal]),
+    ]);
 
     final resetHourVal = data[StorageKeys.dailyResetHour];
     if (resetHourVal is num) {
@@ -167,20 +182,8 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
 
     // ── Favorites: merge by name so neither device loses saved foods ──
     if (data[StorageKeys.savedFoods] is String) {
-      List<FoodItem> parseFavorites(String? json) {
-        if (json == null || json.isEmpty) return [];
-        try {
-          final decoded = jsonDecode(json) as List<dynamic>;
-          return decoded
-              .map((e) => FoodItem.fromJson(e as Map<String, dynamic>))
-              .toList();
-        } catch (_) {
-          return [];
-        }
-      }
-
-      final localFavs = parseFavorites(prefs.getString(StorageKeys.savedFoods));
-      final cloudFavs = parseFavorites(data[StorageKeys.savedFoods] as String);
+      final localFavs = _parseFoodItemJson(prefs.getString(StorageKeys.savedFoods));
+      final cloudFavs = _parseFoodItemJson(data[StorageKeys.savedFoods] as String);
       final seen = <String>{};
       final mergedFavs = <FoodItem>[];
       for (final item in [...cloudFavs, ...localFavs]) {
@@ -195,20 +198,8 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     final cloudSaveDate = data[StorageKeys.lastSaveDate] as String?;
     if (cloudSaveDate == _todayString() &&
         data[StorageKeys.foodItems] is String) {
-      List<FoodItem> parseItems(String? json) {
-        if (json == null) return [];
-        try {
-          final decoded = jsonDecode(json) as List<dynamic>;
-          return decoded
-              .map((e) => FoodItem.fromJson(e as Map<String, dynamic>))
-              .toList();
-        } catch (_) {
-          return [];
-        }
-      }
-
-      final localItems = parseItems(prefs.getString(StorageKeys.foodItems));
-      final cloudItems = parseItems(data[StorageKeys.foodItems] as String);
+      final localItems = _parseFoodItemJson(prefs.getString(StorageKeys.foodItems));
+      final cloudItems = _parseFoodItemJson(data[StorageKeys.foodItems] as String);
 
       // Combine, dedup by loggedAt timestamp, sort newest-first.
       final seen = <String>{};
@@ -227,8 +218,10 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       if (merged.length > cloudItems.length &&
           _premiumService.isCloudSyncEnabled) {
         final newTs = DateTime.now().toIso8601String();
+        // Build push from current local state (not incoming data) so we don't
+        // propagate stale goal/settings values that may have changed locally.
         _cloudSyncService.pushToCloud({
-          ...data,
+          ..._buildSyncPayload(prefs),
           StorageKeys.foodItems: mergedJson,
           StorageKeys.cloudLastModified: newTs,
         });
