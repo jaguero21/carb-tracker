@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
+import 'package:keyboard_actions/keyboard_actions.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:home_widget/home_widget.dart';
@@ -64,6 +65,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   final TextEditingController _foodController = TextEditingController();
   final TextEditingController _carbController = TextEditingController();
   final FocusNode _foodFocusNode = FocusNode();
+  final FocusNode _carbFocusNode = FocusNode();
   final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
   final PerplexityFirebaseService _perplexityService =
       PerplexityFirebaseService();
@@ -182,8 +184,10 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
 
     // ── Favorites: merge by name so neither device loses saved foods ──
     if (data[StorageKeys.savedFoods] is String) {
-      final localFavs = _parseFoodItemJson(prefs.getString(StorageKeys.savedFoods));
-      final cloudFavs = _parseFoodItemJson(data[StorageKeys.savedFoods] as String);
+      final localFavs =
+          _parseFoodItemJson(prefs.getString(StorageKeys.savedFoods));
+      final cloudFavs =
+          _parseFoodItemJson(data[StorageKeys.savedFoods] as String);
       final seen = <String>{};
       final mergedFavs = <FoodItem>[];
       for (final item in [...cloudFavs, ...localFavs]) {
@@ -198,8 +202,10 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     final cloudSaveDate = data[StorageKeys.lastSaveDate] as String?;
     if (cloudSaveDate == _todayString() &&
         data[StorageKeys.foodItems] is String) {
-      final localItems = _parseFoodItemJson(prefs.getString(StorageKeys.foodItems));
-      final cloudItems = _parseFoodItemJson(data[StorageKeys.foodItems] as String);
+      final localItems =
+          _parseFoodItemJson(prefs.getString(StorageKeys.foodItems));
+      final cloudItems =
+          _parseFoodItemJson(data[StorageKeys.foodItems] as String);
 
       // Combine, dedup by loggedAt timestamp, sort newest-first.
       final seen = <String>{};
@@ -444,7 +450,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     }
 
     // Dismiss keyboard so the user can see results
-    _foodFocusNode.unfocus();
+    _dismissKeyboard();
 
     setState(() {
       isLoading = true;
@@ -534,7 +540,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       return;
     }
 
-    _foodFocusNode.unfocus();
+    _dismissKeyboard();
 
     final item = FoodItem(name: name, carbs: carbs, isManualEntry: true);
     setState(() {
@@ -798,7 +804,98 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   }
 
   void _switchToPage(int page) {
+    _dismissKeyboard();
     setState(() => _currentPage = page);
+  }
+
+  void _dismissKeyboard() {
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
+  void _focusNextHomeInput() {
+    if (_isManualEntryMode && _premiumService.isManualEntryEnabled) {
+      _carbFocusNode.requestFocus();
+      return;
+    }
+    _dismissKeyboard();
+    _addFood();
+  }
+
+  Widget _homeKeyboardToolbarButton({
+    required String label,
+    required VoidCallback onPressed,
+    bool isPrimary = false,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return TextButton(
+      onPressed: () {
+        if (isPrimary) {
+          HapticFeedback.lightImpact();
+        } else {
+          HapticFeedback.selectionClick();
+        }
+        onPressed();
+      },
+      style: TextButton.styleFrom(
+        foregroundColor: isPrimary ? AppColors.sage : colorScheme.onSurface,
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontWeight: isPrimary ? FontWeight.w600 : FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
+  KeyboardActionsConfig _buildHomeKeyboardActionsConfig() {
+    return KeyboardActionsConfig(
+      keyboardActionsPlatform: KeyboardActionsPlatform.IOS,
+      keyboardBarColor: Theme.of(context).colorScheme.surface,
+      actions: [
+        KeyboardActionsItem(
+          focusNode: _foodFocusNode,
+          toolbarButtons: [
+            if (_isManualEntryMode && _premiumService.isManualEntryEnabled)
+              (_) => _homeKeyboardToolbarButton(
+                    label: 'Next',
+                    onPressed: _focusNextHomeInput,
+                  ),
+            (_) => _homeKeyboardToolbarButton(
+                  label: (_isManualEntryMode &&
+                          _premiumService.isManualEntryEnabled)
+                      ? 'Done'
+                      : 'Add',
+                  isPrimary: true,
+                  onPressed: () {
+                    _dismissKeyboard();
+                    if (!_isManualEntryMode ||
+                        !_premiumService.isManualEntryEnabled) {
+                      _addFood();
+                    }
+                  },
+                ),
+          ],
+        ),
+        KeyboardActionsItem(
+          focusNode: _carbFocusNode,
+          toolbarButtons: [
+            (_) => _homeKeyboardToolbarButton(
+                  label: 'Previous',
+                  onPressed: () => _foodFocusNode.requestFocus(),
+                ),
+            (_) => _homeKeyboardToolbarButton(
+                  label: 'Add',
+                  isPrimary: true,
+                  onPressed: () {
+                    _dismissKeyboard();
+                    _addManualFood();
+                  },
+                ),
+          ],
+        ),
+      ],
+    );
   }
 
   void _applySettingsResult(SettingsResult result) async {
@@ -843,11 +940,14 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       calories += i.calories ?? 0;
     }
 
-    Widget col(String label, double value, double? goal, {bool isCalories = false}) {
+    Widget col(String label, double value, double? goal,
+        {bool isCalories = false}) {
       final unit = isCalories ? '' : 'g';
       final valueStr = value.toStringAsFixed(0);
       final goalStr = goal != null
-          ? (isCalories ? ' / ${goal.toStringAsFixed(0)}' : ' / ${goal.toStringAsFixed(0)}g')
+          ? (isCalories
+              ? ' / ${goal.toStringAsFixed(0)}'
+              : ' / ${goal.toStringAsFixed(0)}g')
           : null;
 
       return Expanded(
@@ -1088,314 +1188,107 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   }
 
   Widget _buildHomePage(bool isDark) {
-    return AnimatedPadding(
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOut,
-      padding: EdgeInsets.only(
-        left: 24.0,
-        right: 24.0,
-        top: 16.0,
-        bottom: 24.0 + MediaQuery.of(context).viewInsets.bottom,
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Total Carbs Card
-            GestureDetector(
-              onTap: foodItems.isNotEmpty
-                  ? () {
-                      setState(() {
-                        showingDailyTotal = !showingDailyTotal;
-                      });
-                      HapticFeedback.lightImpact();
-                    }
-                  : null,
-              onLongPress: () {
-                HapticFeedback.mediumImpact();
-                _switchToPage(1);
-              },
-              child: Container(
-                padding: const EdgeInsets.all(32),
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.darkSurface : Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color:
-                          Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
-                      blurRadius: 6,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    // "Today's Total" badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AppColors.sage.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        showingDailyTotal || foodItems.isEmpty
-                            ? "Today's Total"
-                            : foodItems.first.name,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.sage,
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: _dismissKeyboard,
+      child: AnimatedPadding(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+        padding: EdgeInsets.only(
+          left: 24.0,
+          right: 24.0,
+          top: 16.0,
+          bottom: 24.0 + MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: KeyboardActions(
+          config: _buildHomeKeyboardActionsConfig(),
+          child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Total Carbs Card
+                GestureDetector(
+                  onTap: foodItems.isNotEmpty
+                      ? () {
+                          setState(() {
+                            showingDailyTotal = !showingDailyTotal;
+                          });
+                          HapticFeedback.lightImpact();
+                        }
+                      : null,
+                  onLongPress: () {
+                    HapticFeedback.mediumImpact();
+                    _switchToPage(1);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(32),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.darkSurface : Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black
+                              .withValues(alpha: isDark ? 0.3 : 0.08),
+                          blurRadius: 6,
+                          offset: const Offset(0, 4),
                         ),
-                      ),
+                      ],
                     ),
-                    const SizedBox(height: 16),
-                    // Large carb number
-                    RichText(
-                      text: TextSpan(
-                        children: [
-                          TextSpan(
-                            text: showingDailyTotal || foodItems.isEmpty
-                                ? totalCarbs.toStringAsFixed(1)
-                                : foodItems.first.carbs.toStringAsFixed(1),
+                    child: Column(
+                      children: [
+                        // "Today's Total" badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: AppColors.sage.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            showingDailyTotal || foodItems.isEmpty
+                                ? "Today's Total"
+                                : foodItems.first.name,
                             style: TextStyle(
-                              fontSize: 64,
-                              fontWeight: FontWeight.w300,
-                              color: Theme.of(context).colorScheme.onSurface,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.sage,
                             ),
                           ),
-                          TextSpan(
-                            text: 'g',
-                            style: TextStyle(
-                              fontSize: 30,
-                              fontWeight: FontWeight.w300,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (dailyCarbGoal != null) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        'of ${dailyCarbGoal!.toStringAsFixed(0)}g daily goal',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      // Linear progress bar
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: LinearProgressIndicator(
-                          value: (totalCarbs / dailyCarbGoal!).clamp(0.0, 1.0),
-                          minHeight: 8,
-                          backgroundColor: isDark
-                              ? AppColors.darkBorderMedium
-                              : const Color(0xFFE5E7EB),
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            totalCarbs > dailyCarbGoal!
-                                ? AppColors.terracotta
-                                : AppColors.sage,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Macro totals strip (premium, only when data exists)
-            if (_premiumService.isMacrosEnabled &&
-                foodItems.any((i) => i.hasMacros)) ...[
-              _buildMacroStrip(isDark),
-              const SizedBox(height: 16),
-            ],
-
-            // Input Card
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.darkSurface : Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
-                    blurRadius: 6,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  // Mode toggle (AI Lookup / Manual)
-                  if (_premiumService.isManualEntryEnabled)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: Row(
-                        children: [
-                          _buildModeChip('AI Lookup', !_isManualEntryMode, () {
-                            setState(() => _isManualEntryMode = false);
-                          }),
-                          const SizedBox(width: 8),
-                          _buildModeChip('Manual', _isManualEntryMode, () {
-                            setState(() => _isManualEntryMode = true);
-                          }),
-                        ],
-                      ),
-                    ),
-                  TextField(
-                    controller: _foodController,
-                    focusNode: _foodFocusNode,
-                    decoration: InputDecoration(
-                      hintText: _isManualEntryMode
-                          ? 'Food name...'
-                          : 'Enter food item...',
-                      hintStyle: TextStyle(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurfaceVariant
-                            .withValues(alpha: 0.5),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 14,
-                      ),
-                    ),
-                    onSubmitted: (_) =>
-                        (_isManualEntryMode && _premiumService.isManualEntryEnabled) ? _addManualFood() : _addFood(),
-                  ),
-                  if (_isManualEntryMode && _premiumService.isManualEntryEnabled) ...[
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _carbController,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
-                      textInputAction: TextInputAction.done,
-                      decoration: InputDecoration(
-                        hintText: 'Carbs (g)',
-                        suffixText: 'g',
-                        hintStyle: TextStyle(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurfaceVariant
-                              .withValues(alpha: 0.5),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 14,
-                        ),
-                      ),
-                      onSubmitted: (_) => _addManualFood(),
-                    ),
-                  ],
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: AppColors.primaryGradient,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.sage.withValues(alpha: 0.2),
-                            blurRadius: 15,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: ElevatedButton(
-                        onPressed: isLoading
-                            ? null
-                            : ((_isManualEntryMode && _premiumService.isManualEntryEnabled) ? _addManualFood : _addFood),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                        child: isLoading
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
+                        const SizedBox(height: 16),
+                        // Large carb number
+                        RichText(
+                          text: TextSpan(
+                            children: [
+                              TextSpan(
+                                text: showingDailyTotal || foodItems.isEmpty
+                                    ? totalCarbs.toStringAsFixed(1)
+                                    : foodItems.first.carbs.toStringAsFixed(1),
+                                style: TextStyle(
+                                  fontSize: 64,
+                                  fontWeight: FontWeight.w300,
+                                  color:
+                                      Theme.of(context).colorScheme.onSurface,
                                 ),
-                              )
-                            : Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(Icons.add,
-                                      size: 20, color: Colors.white),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    _isManualEntryMode ? 'Add' : 'Add Food',
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w500,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ],
                               ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Food List Header
-            if (foodItems.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Row(
-                  children: [
-                    // Green vertical bar
-                    Container(
-                      width: 4,
-                      height: 20,
-                      decoration: BoxDecoration(
-                        color: AppColors.sage,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'TODAY',
-                      style: TextStyle(
-                        fontSize: 14,
-                        letterSpacing: 1.5,
-                        color: Theme.of(context).colorScheme.onSurface,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const Spacer(),
-                    GestureDetector(
-                      onTap: _resetTotal,
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.refresh,
-                            size: 16,
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
+                              TextSpan(
+                                text: 'g',
+                                style: TextStyle(
+                                  fontSize: 30,
+                                  fontWeight: FontWeight.w300,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 4),
+                        ),
+                        if (dailyCarbGoal != null) ...[
+                          const SizedBox(height: 8),
                           Text(
-                            'Reset',
+                            'of ${dailyCarbGoal!.toStringAsFixed(0)}g daily goal',
                             style: TextStyle(
                               fontSize: 14,
                               color: Theme.of(context)
@@ -1403,85 +1296,323 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                                   .onSurfaceVariant,
                             ),
                           ),
+                          const SizedBox(height: 16),
+                          // Linear progress bar
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value:
+                                  (totalCarbs / dailyCarbGoal!).clamp(0.0, 1.0),
+                              minHeight: 8,
+                              backgroundColor: isDark
+                                  ? AppColors.darkBorderMedium
+                                  : const Color(0xFFE5E7EB),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                totalCarbs > dailyCarbGoal!
+                                    ? AppColors.terracotta
+                                    : AppColors.sage,
+                              ),
+                            ),
+                          ),
                         ],
-                      ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
 
-            // Food List
-            foodItems.isEmpty
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 32.0),
-                      child: Text(
-                        'No foods added yet',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          fontSize: 14,
-                        ),
+                const SizedBox(height: 16),
+
+                // Macro totals strip (premium, only when data exists)
+                if (_premiumService.isMacrosEnabled &&
+                    foodItems.any((i) => i.hasMacros)) ...[
+                  _buildMacroStrip(isDark),
+                  const SizedBox(height: 16),
+                ],
+
+                // Input Card
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.darkSurface : Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color:
+                            Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
+                        blurRadius: 6,
+                        offset: const Offset(0, 4),
                       ),
-                    ),
-                  )
-                : AnimatedList(
-                    key: _listKey,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    initialItemCount: foodItems.length,
-                    itemBuilder: (context, index, animation) {
-                      final item = foodItems[index];
-                      return SizeTransition(
-                        sizeFactor: animation,
-                        child: FadeTransition(
-                          opacity: animation,
-                          child: Dismissible(
-                            key: Key('${item.name}_$index'),
-                            direction: DismissDirection.horizontal,
-                            confirmDismiss: (direction) async {
-                              if (direction == DismissDirection.startToEnd) {
-                                HapticFeedback.lightImpact();
-                                await _saveToSavedFoods(item);
-                                return false;
-                              } else {
-                                HapticFeedback.mediumImpact();
-                                return true;
-                              }
-                            },
-                            onDismissed: (_) => removeItem(index),
-                            background: Container(
-                              alignment: Alignment.centerLeft,
-                              padding: const EdgeInsets.only(left: 16),
-                              decoration: BoxDecoration(
-                                color: AppColors.sage,
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Icon(
-                                Icons.bookmark,
-                                size: 28,
-                                color: Colors.white,
-                              ),
-                            ),
-                            secondaryBackground: Container(
-                              alignment: Alignment.centerRight,
-                              padding: const EdgeInsets.only(right: 16),
-                              decoration: BoxDecoration(
-                                color: AppColors.terracotta,
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Icon(
-                                Icons.delete,
-                                size: 28,
-                                color: Colors.white,
-                              ),
-                            ),
-                            child: _buildFoodTile(item),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      // Mode toggle (AI Lookup / Manual)
+                      if (_premiumService.isManualEntryEnabled)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: Row(
+                            children: [
+                              _buildModeChip('AI Lookup', !_isManualEntryMode,
+                                  () {
+                                setState(() => _isManualEntryMode = false);
+                              }),
+                              const SizedBox(width: 8),
+                              _buildModeChip('Manual', _isManualEntryMode, () {
+                                setState(() => _isManualEntryMode = true);
+                              }),
+                            ],
                           ),
                         ),
-                      );
-                    },
+                      TextField(
+                        controller: _foodController,
+                        focusNode: _foodFocusNode,
+                        textInputAction: (_isManualEntryMode &&
+                                _premiumService.isManualEntryEnabled)
+                            ? TextInputAction.next
+                            : TextInputAction.done,
+                        decoration: InputDecoration(
+                          hintText: _isManualEntryMode
+                              ? 'Food name...'
+                              : 'Enter food item...',
+                          hintStyle: TextStyle(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant
+                                .withValues(alpha: 0.5),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 14,
+                          ),
+                        ),
+                        onSubmitted: (_) => _focusNextHomeInput(),
+                        onTapOutside: (_) => _dismissKeyboard(),
+                      ),
+                      if (_isManualEntryMode &&
+                          _premiumService.isManualEntryEnabled) ...[
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _carbController,
+                          focusNode: _carbFocusNode,
+                          keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true),
+                          textInputAction: TextInputAction.done,
+                          decoration: InputDecoration(
+                            hintText: 'Carbs (g)',
+                            suffixText: 'g',
+                            hintStyle: TextStyle(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant
+                                  .withValues(alpha: 0.5),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 14,
+                            ),
+                          ),
+                          onSubmitted: (_) {
+                            _dismissKeyboard();
+                            _addManualFood();
+                          },
+                          onTapOutside: (_) => _dismissKeyboard(),
+                        ),
+                      ],
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: AppColors.primaryGradient,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.sage.withValues(alpha: 0.2),
+                                blurRadius: 15,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: ElevatedButton(
+                            onPressed: isLoading
+                                ? null
+                                : ((_isManualEntryMode &&
+                                        _premiumService.isManualEntryEnabled)
+                                    ? _addManualFood
+                                    : _addFood),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              shadowColor: Colors.transparent,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                            child: isLoading
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(Icons.add,
+                                          size: 20, color: Colors.white),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        _isManualEntryMode ? 'Add' : 'Add Food',
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w500,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-          ],
+                ),
+
+                const SizedBox(height: 24),
+
+                // Food List Header
+                if (foodItems.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Row(
+                      children: [
+                        // Green vertical bar
+                        Container(
+                          width: 4,
+                          height: 20,
+                          decoration: BoxDecoration(
+                            color: AppColors.sage,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'TODAY',
+                          style: TextStyle(
+                            fontSize: 14,
+                            letterSpacing: 1.5,
+                            color: Theme.of(context).colorScheme.onSurface,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const Spacer(),
+                        GestureDetector(
+                          onTap: _resetTotal,
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.refresh,
+                                size: 16,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Reset',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                // Food List
+                foodItems.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 32.0),
+                          child: Text(
+                            'No foods added yet',
+                            style: TextStyle(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      )
+                    : AnimatedList(
+                        key: _listKey,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        initialItemCount: foodItems.length,
+                        itemBuilder: (context, index, animation) {
+                          final item = foodItems[index];
+                          return SizeTransition(
+                            sizeFactor: animation,
+                            child: FadeTransition(
+                              opacity: animation,
+                              child: Dismissible(
+                                key: Key('${item.name}_$index'),
+                                direction: DismissDirection.horizontal,
+                                confirmDismiss: (direction) async {
+                                  if (direction ==
+                                      DismissDirection.startToEnd) {
+                                    HapticFeedback.lightImpact();
+                                    await _saveToSavedFoods(item);
+                                    return false;
+                                  } else {
+                                    HapticFeedback.mediumImpact();
+                                    return true;
+                                  }
+                                },
+                                onDismissed: (_) => removeItem(index),
+                                background: Container(
+                                  alignment: Alignment.centerLeft,
+                                  padding: const EdgeInsets.only(left: 16),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.sage,
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: Icon(
+                                    Icons.bookmark,
+                                    size: 28,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                secondaryBackground: Container(
+                                  alignment: Alignment.centerRight,
+                                  padding: const EdgeInsets.only(right: 16),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.terracotta,
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: Icon(
+                                    Icons.delete,
+                                    size: 28,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                child: _buildFoodTile(item),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -1496,6 +1627,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     _foodController.dispose();
     _carbController.dispose();
     _foodFocusNode.dispose();
+    _carbFocusNode.dispose();
     super.dispose();
   }
 }

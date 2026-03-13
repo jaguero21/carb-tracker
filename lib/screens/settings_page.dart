@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:keyboard_actions/keyboard_actions.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'dart:io';
@@ -74,6 +75,11 @@ class _SettingsPageState extends State<SettingsPage> {
   final TextEditingController _fatGoalController = TextEditingController();
   final TextEditingController _fiberGoalController = TextEditingController();
   final TextEditingController _caloriesGoalController = TextEditingController();
+  final FocusNode _goalFocusNode = FocusNode();
+  final FocusNode _proteinGoalFocusNode = FocusNode();
+  final FocusNode _fatGoalFocusNode = FocusNode();
+  final FocusNode _fiberGoalFocusNode = FocusNode();
+  final FocusNode _caloriesGoalFocusNode = FocusNode();
 
   // Favorites state
   List<FoodItem> _savedFoods = [];
@@ -84,7 +90,12 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _isHistoryLoading = true;
   bool _hasPermission = true;
 
-  static const _tabIcons = [Icons.bookmark_border, Icons.history, Icons.adjust, Icons.workspace_premium];
+  static const _tabIcons = [
+    Icons.bookmark_border,
+    Icons.history,
+    Icons.adjust,
+    Icons.workspace_premium
+  ];
   static const _tabLabels = ['Favorites', 'History', 'Goals', 'Premium'];
 
   @override
@@ -128,6 +139,11 @@ class _SettingsPageState extends State<SettingsPage> {
     _fatGoalController.dispose();
     _fiberGoalController.dispose();
     _caloriesGoalController.dispose();
+    _goalFocusNode.dispose();
+    _proteinGoalFocusNode.dispose();
+    _fatGoalFocusNode.dispose();
+    _fiberGoalFocusNode.dispose();
+    _caloriesGoalFocusNode.dispose();
     super.dispose();
   }
 
@@ -221,8 +237,18 @@ class _SettingsPageState extends State<SettingsPage> {
     if (date == today) return 'Today';
     if (date == yesterday) return 'Yesterday';
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
     ];
     return '${months[date.month - 1]} ${date.day}';
   }
@@ -243,10 +269,9 @@ class _SettingsPageState extends State<SettingsPage> {
     _caloriesGoalController.text = c != null ? c.toStringAsFixed(0) : '';
   }
 
-  Future<void> _savePrefGoal(SharedPreferences prefs, String key, double? value) {
-    return value != null
-        ? prefs.setDouble(key, value)
-        : prefs.remove(key);
+  Future<void> _savePrefGoal(
+      SharedPreferences prefs, String key, double? value) {
+    return value != null ? prefs.setDouble(key, value) : prefs.remove(key);
   }
 
   double? _parseMacroGoal(TextEditingController c) {
@@ -320,6 +345,141 @@ class _SettingsPageState extends State<SettingsPage> {
     return '${hour - 12}:00 PM';
   }
 
+  void _dismissKeyboard() {
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
+  void _focusPreviousGoalField(FocusNode current) {
+    if (current == _caloriesGoalFocusNode) {
+      _fiberGoalFocusNode.requestFocus();
+      return;
+    }
+    if (current == _fiberGoalFocusNode) {
+      _fatGoalFocusNode.requestFocus();
+      return;
+    }
+    if (current == _fatGoalFocusNode) {
+      _proteinGoalFocusNode.requestFocus();
+      return;
+    }
+    if (current == _proteinGoalFocusNode) {
+      _goalFocusNode.requestFocus();
+    }
+  }
+
+  void _focusNextGoalField(FocusNode current) {
+    if (current == _goalFocusNode) {
+      _proteinGoalFocusNode.requestFocus();
+      return;
+    }
+    if (current == _proteinGoalFocusNode) {
+      _fatGoalFocusNode.requestFocus();
+      return;
+    }
+    if (current == _fatGoalFocusNode) {
+      _fiberGoalFocusNode.requestFocus();
+      return;
+    }
+    if (current == _fiberGoalFocusNode) {
+      _caloriesGoalFocusNode.requestFocus();
+      return;
+    }
+    _dismissKeyboard();
+    _saveGoals();
+  }
+
+  Widget _keyboardToolbarButton({
+    required String label,
+    required VoidCallback onPressed,
+    bool isPrimary = false,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return TextButton(
+      onPressed: () {
+        if (isPrimary) {
+          HapticFeedback.lightImpact();
+        } else {
+          HapticFeedback.selectionClick();
+        }
+        onPressed();
+      },
+      style: TextButton.styleFrom(
+        foregroundColor: isPrimary ? AppColors.sage : colorScheme.onSurface,
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontWeight: isPrimary ? FontWeight.w600 : FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
+  KeyboardActionsConfig _buildGoalKeyboardActionsConfig() {
+    KeyboardActionsItem itemFor(
+      FocusNode node, {
+      bool showPrevious = true,
+      bool showNext = true,
+      bool doneSaves = false,
+      String doneLabel = 'Done',
+    }) {
+      final buttons = <Widget Function(FocusNode)>[];
+
+      if (showPrevious) {
+        buttons.add(
+          (_) => _keyboardToolbarButton(
+            label: 'Previous',
+            onPressed: () => _focusPreviousGoalField(node),
+          ),
+        );
+      }
+
+      if (showNext) {
+        buttons.add(
+          (_) => _keyboardToolbarButton(
+            label: 'Next',
+            onPressed: () => _focusNextGoalField(node),
+          ),
+        );
+      }
+
+      buttons.add(
+        (_) => _keyboardToolbarButton(
+          label: doneLabel,
+          isPrimary: true,
+          onPressed: () {
+            _dismissKeyboard();
+            if (doneSaves) {
+              _saveGoals();
+            }
+          },
+        ),
+      );
+
+      return KeyboardActionsItem(
+        focusNode: node,
+        toolbarButtons: buttons,
+      );
+    }
+
+    return KeyboardActionsConfig(
+      keyboardActionsPlatform: KeyboardActionsPlatform.IOS,
+      keyboardBarColor: Theme.of(context).colorScheme.surface,
+      actions: [
+        itemFor(_goalFocusNode, showPrevious: false),
+        itemFor(_proteinGoalFocusNode),
+        itemFor(_fatGoalFocusNode),
+        itemFor(_fiberGoalFocusNode),
+        itemFor(
+          _caloriesGoalFocusNode,
+          showNext: false,
+          doneSaves: true,
+          doneLabel: 'Save',
+        ),
+      ],
+    );
+  }
+
   // ── Helpers ──
 
   Widget _buildIconBadge(IconData icon) {
@@ -343,7 +503,6 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-
   // ── Build ──
 
   @override
@@ -362,9 +521,11 @@ class _SettingsPageState extends State<SettingsPage> {
             children: List.generate(_tabLabels.length, (index) {
               final selected = _selectedTab == index;
               return Padding(
-                padding: EdgeInsets.only(right: index < _tabLabels.length - 1 ? 12 : 0),
+                padding: EdgeInsets.only(
+                    right: index < _tabLabels.length - 1 ? 12 : 0),
                 child: GestureDetector(
                   onTap: () {
+                    _dismissKeyboard();
                     HapticFeedback.lightImpact();
                     setState(() => _selectedTab = index);
                   },
@@ -648,8 +809,7 @@ class _SettingsPageState extends State<SettingsPage> {
           children: [
             // Day header
             Padding(
-              padding: EdgeInsets.only(
-                  top: index == 0 ? 8 : 24, bottom: 12),
+              padding: EdgeInsets.only(top: index == 0 ? 8 : 24, bottom: 12),
               child: Row(
                 children: [
                   Container(
@@ -700,203 +860,222 @@ class _SettingsPageState extends State<SettingsPage> {
   // ── Goals Tab ──
 
   Widget _buildGoalsTab(ColorScheme colorScheme, bool isDark) {
-    return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0),
-      children: [
-        // Daily Carb Goal card
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: isDark ? AppColors.darkSurface : Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
-                blurRadius: 6,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  _buildIconBadge(Icons.adjust),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Daily Carb Goal',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: colorScheme.onSurface,
+    return KeyboardActions(
+      config: _buildGoalKeyboardActionsConfig(),
+      child: ListView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+        children: [
+          // Daily Carb Goal card
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkSurface : Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
+                  blurRadius: 6,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    _buildIconBadge(Icons.adjust),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Daily Carb Goal',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: colorScheme.onSurface,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Set a daily target for carb intake',
-                          style: TextStyle(
-                              fontSize: 13, color: colorScheme.onSurfaceVariant),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              TextField(
-                controller: _goalController,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _saveGoals(),
-                decoration: InputDecoration(
-                  hintText: 'e.g. 50',
-                  suffixText: 'g',
-                  errorText: _goalError,
-                ),
-                onChanged: (_) {
-                  if (_goalError != null) {
-                    setState(() => _goalError = null);
-                  }
-                },
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 16),
-
-        // Daily Reset Time card
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: isDark ? AppColors.darkSurface : Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
-                blurRadius: 6,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  _buildIconBadge(Icons.schedule),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Daily Reset Time',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: colorScheme.onSurface,
+                          const SizedBox(height: 2),
+                          Text(
+                            'Set a daily target for carb intake',
+                            style: TextStyle(
+                                fontSize: 13,
+                                color: colorScheme.onSurfaceVariant),
                           ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'When your daily carb count resets to zero',
-                          style: TextStyle(
-                              fontSize: 13, color: colorScheme.onSurfaceVariant),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.darkBackground : AppColors.inputFill,
-                  borderRadius: BorderRadius.circular(16),
+                  ],
                 ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<int>(
-                    value: _resetHour,
-                    isExpanded: true,
-                    dropdownColor: colorScheme.surface,
-                    items: List.generate(24, (i) => i).map((hour) {
-                      return DropdownMenuItem<int>(
-                        value: hour,
-                        child: Text(
-                          _formatHour(hour),
-                          style: TextStyle(
-                              fontSize: 15, color: colorScheme.onSurface),
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() => _resetHour = value);
-                      }
-                    },
+                const SizedBox(height: 20),
+                TextField(
+                  controller: _goalController,
+                  focusNode: _goalFocusNode,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) {
+                    _dismissKeyboard();
+                    _saveGoals();
+                  },
+                  onTapOutside: (_) => _dismissKeyboard(),
+                  decoration: InputDecoration(
+                    hintText: 'e.g. 50',
+                    suffixText: 'g',
+                    errorText: _goalError,
                   ),
+                  onChanged: (_) {
+                    if (_goalError != null) {
+                      setState(() => _goalError = null);
+                    }
+                  },
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
 
-        // Macro Goals card — only shown when macros feature is enabled
-        if (widget.premiumService?.isMacrosEnabled == true) ...[
           const SizedBox(height: 16),
-          _buildMacroGoalsCard(colorScheme, isDark),
+
+          // Daily Reset Time card
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkSurface : Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
+                  blurRadius: 6,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    _buildIconBadge(Icons.schedule),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Daily Reset Time',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: colorScheme.onSurface,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'When your daily carb count resets to zero',
+                            style: TextStyle(
+                                fontSize: 13,
+                                color: colorScheme.onSurfaceVariant),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color:
+                        isDark ? AppColors.darkBackground : AppColors.inputFill,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<int>(
+                      value: _resetHour,
+                      isExpanded: true,
+                      dropdownColor: colorScheme.surface,
+                      items: List.generate(24, (i) => i).map((hour) {
+                        return DropdownMenuItem<int>(
+                          value: hour,
+                          child: Text(
+                            _formatHour(hour),
+                            style: TextStyle(
+                                fontSize: 15, color: colorScheme.onSurface),
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() => _resetHour = value);
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Macro Goals card — only shown when macros feature is enabled
+          if (widget.premiumService?.isMacrosEnabled == true) ...[
+            const SizedBox(height: 16),
+            _buildMacroGoalsCard(colorScheme, isDark),
+          ],
+
+          const SizedBox(height: 32),
+
+          // Save button with gradient
+          Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              gradient: AppColors.primaryGradient,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.sage.withValues(alpha: 0.2),
+                  blurRadius: 15,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: ElevatedButton(
+              onPressed: _saveGoals,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.transparent,
+                shadowColor: Colors.transparent,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+              ),
+              child: const Text(
+                'Save Changes',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
         ],
-
-        const SizedBox(height: 32),
-
-        // Save button with gradient
-        Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            gradient: AppColors.primaryGradient,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.sage.withValues(alpha: 0.2),
-                blurRadius: 15,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: ElevatedButton(
-            onPressed: _saveGoals,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.transparent,
-              shadowColor: Colors.transparent,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
-            ),
-            child: const Text(
-              'Save Changes',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: Colors.white,
-              ),
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
   Widget _buildMacroGoalsCard(ColorScheme colorScheme, bool isDark) {
-    Widget field(String label, String hint, TextEditingController controller,
-        {bool isCalories = false}) {
+    Widget field(
+      String label,
+      String hint,
+      TextEditingController controller,
+      FocusNode focusNode,
+      TextInputAction textInputAction,
+      VoidCallback onSubmitted, {
+      bool isCalories = false,
+    }) {
       return Padding(
         padding: const EdgeInsets.only(bottom: 12),
         child: Row(
@@ -914,8 +1093,12 @@ class _SettingsPageState extends State<SettingsPage> {
             Expanded(
               child: TextField(
                 controller: controller,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                textInputAction: TextInputAction.next,
+                focusNode: focusNode,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                textInputAction: textInputAction,
+                onSubmitted: (_) => onSubmitted(),
+                onTapOutside: (_) => _dismissKeyboard(),
                 decoration: InputDecoration(
                   hintText: hint,
                   suffixText: isCalories ? 'kcal' : 'g',
@@ -978,10 +1161,42 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
           ),
           const SizedBox(height: 20),
-          field('Protein', 'e.g. 120', _proteinGoalController),
-          field('Fat', 'e.g. 65', _fatGoalController),
-          field('Fiber', 'e.g. 25', _fiberGoalController),
-          field('Calories', 'e.g. 2000', _caloriesGoalController, isCalories: true),
+          field(
+            'Protein',
+            'e.g. 120',
+            _proteinGoalController,
+            _proteinGoalFocusNode,
+            TextInputAction.next,
+            () => _fatGoalFocusNode.requestFocus(),
+          ),
+          field(
+            'Fat',
+            'e.g. 65',
+            _fatGoalController,
+            _fatGoalFocusNode,
+            TextInputAction.next,
+            () => _fiberGoalFocusNode.requestFocus(),
+          ),
+          field(
+            'Fiber',
+            'e.g. 25',
+            _fiberGoalController,
+            _fiberGoalFocusNode,
+            TextInputAction.next,
+            () => _caloriesGoalFocusNode.requestFocus(),
+          ),
+          field(
+            'Calories',
+            'e.g. 2000',
+            _caloriesGoalController,
+            _caloriesGoalFocusNode,
+            TextInputAction.done,
+            () {
+              _dismissKeyboard();
+              _saveGoals();
+            },
+            isCalories: true,
+          ),
         ],
       ),
     );
@@ -1036,7 +1251,8 @@ class _SettingsPageState extends State<SettingsPage> {
                     if (badge != null) ...[
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
                           color: AppColors.honey.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(8),
@@ -1115,11 +1331,13 @@ class _SettingsPageState extends State<SettingsPage> {
           isDark: isDark,
           onChanged: (v) async {
             if (v) {
-              final available = await widget.cloudSyncService?.isAvailable() ?? false;
+              final available =
+                  await widget.cloudSyncService?.isAvailable() ?? false;
               if (!available && mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Sign into iCloud in Settings to enable sync'),
+                    content:
+                        Text('Sign into iCloud in Settings to enable sync'),
                     duration: Duration(seconds: 3),
                   ),
                 );
