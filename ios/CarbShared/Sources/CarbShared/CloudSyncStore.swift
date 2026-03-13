@@ -8,8 +8,8 @@ import os.log
 /// and writes it back to SharedPreferences on pull. This avoids UserDefaults domain
 /// mismatches between the Flutter SharedPreferences store and the App Group store.
 ///
-/// **Thread Safety:** All public methods are thread-safe and can be called from any thread.
-/// Internally uses a serial queue to synchronize access to shared state.
+/// **Thread Safety:** All methods are isolated to `@MainActor`. Call directly from the
+/// main thread, or from any async context using `await`.
 @MainActor
 public final class CloudSyncStore {
     
@@ -21,6 +21,7 @@ public final class CloudSyncStore {
 
     private let kvStore = NSUbiquitousKeyValueStore.default
     private let logger = Logger(subsystem: "com.carpecarb", category: "CloudSyncStore")
+    private static let iso8601 = ISO8601DateFormatter()
     
     /// Keys synced to iCloud — must match StorageKeys in Dart
     private enum Key {
@@ -94,7 +95,7 @@ public final class CloudSyncStore {
             return
         }
 
-        let timestamp = ISO8601DateFormatter().string(from: Date())
+        let timestamp = Self.iso8601.string(from: Date())
         
         logger.info("Pushing \(data.count) keys to iCloud")
 
