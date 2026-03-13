@@ -7,7 +7,7 @@ import WidgetKit
 // MARK: - Shared UserDefaults reader/writer
 
 struct CarbDataStore {
-    static let appGroupID = "group.com.jamesaguero.mycarbtracker"
+    static let appGroupID = "group.com.carpecarb.shared"
 
     private static var defaults: UserDefaults? {
         UserDefaults(suiteName: appGroupID)

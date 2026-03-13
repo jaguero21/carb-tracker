@@ -10,6 +10,13 @@
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
 		250470652F4FC03600AAEB6C /* CarbShared in Frameworks */ = {isa = PBXBuildFile; productRef = 250470642F4FC03600AAEB6C /* CarbShared */; };
 		2599376A2F5F655F008B6262 /* CloudSyncChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 259937672F5F655F008B6262 /* CloudSyncChannel.swift */; };
+		259939122F625341008B6262 /* CloudSyncChannel-ErrorHandling.md in Resources */ = {isa = PBXBuildFile; fileRef = 259939112F625341008B6262 /* CloudSyncChannel-ErrorHandling.md */; };
+		259939162F62546A008B6262 /* CloudSyncStore-ThreadSafety.md in Resources */ = {isa = PBXBuildFile; fileRef = 259939152F62546A008B6262 /* CloudSyncStore-ThreadSafety.md */; };
+		259939182F62557A008B6262 /* Logging-Guide.md in Resources */ = {isa = PBXBuildFile; fileRef = 259939172F62557A008B6262 /* Logging-Guide.md */; };
+		2599391A2F625599008B6262 /* Logging-QuickReference.md in Resources */ = {isa = PBXBuildFile; fileRef = 259939192F625599008B6262 /* Logging-QuickReference.md */; };
+		2599391C2F62563F008B6262 /* AppGroup-Verification.md in Resources */ = {isa = PBXBuildFile; fileRef = 2599391B2F62563F008B6262 /* AppGroup-Verification.md */; };
+		2599391E2F625652008B6262 /* AppGroupConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2599391D2F625652008B6262 /* AppGroupConfig.swift */; };
+		259939222F6256B3008B6262 /* AppGroup-Summary.md in Resources */ = {isa = PBXBuildFile; fileRef = 259939212F6256B3008B6262 /* AppGroup-Summary.md */; };
 		26E1DD2252B34F399E821FDB /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = AEB651624A3E8E57A5A76002 /* GoogleService-Info.plist */; };
 		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
@@ -82,6 +89,14 @@
 		1A90A81E5B5163EA05014FAB /* Pods-RunnerTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.release.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.release.xcconfig"; sourceTree = "<group>"; };
 		2541C13E2F4B84DC00E6F8C6 /* CarpeCarbWatchApp Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "CarpeCarbWatchApp Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		259937672F5F655F008B6262 /* CloudSyncChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Runner/CloudSyncChannel.swift; sourceTree = "<group>"; };
+		259939112F625341008B6262 /* CloudSyncChannel-ErrorHandling.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "CloudSyncChannel-ErrorHandling.md"; sourceTree = "<group>"; };
+		259939152F62546A008B6262 /* CloudSyncStore-ThreadSafety.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "CloudSyncStore-ThreadSafety.md"; sourceTree = "<group>"; };
+		259939172F62557A008B6262 /* Logging-Guide.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "Logging-Guide.md"; sourceTree = "<group>"; };
+		259939192F625599008B6262 /* Logging-QuickReference.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "Logging-QuickReference.md"; sourceTree = "<group>"; };
+		2599391B2F62563F008B6262 /* AppGroup-Verification.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "AppGroup-Verification.md"; sourceTree = "<group>"; };
+		2599391D2F625652008B6262 /* AppGroupConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppGroupConfig.swift; sourceTree = "<group>"; };
+		2599391F2F62567A008B6262 /* verify-app-group.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "verify-app-group.sh"; sourceTree = "<group>"; };
+		259939212F6256B3008B6262 /* AppGroup-Summary.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "AppGroup-Summary.md"; sourceTree = "<group>"; };
 		331C807B294A618700263BE5 /* RunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerTests.swift; sourceTree = "<group>"; };
 		331C8081294A63A400263BE5 /* RunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RunnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		33D2A47D183367667B0F0E0F /* Pods_RunnerTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_RunnerTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -238,6 +253,8 @@
 				SI0001A1 /* CarbIntents.swift */,
 				SI0001A2 /* CarpeCarbShortcuts.swift */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
+				259939112F625341008B6262 /* CloudSyncChannel-ErrorHandling.md */,
+				259939152F62546A008B6262 /* CloudSyncStore-ThreadSafety.md */,
 			);
 			path = Runner;
 			sourceTree = "<group>";
@@ -248,6 +265,12 @@
 				CW0001A2 /* CarbWiseWidget.swift */,
 				CW0001A5 /* Info.plist */,
 				CW0001A6 /* CarbWiseWidgetExtension.entitlements */,
+				259939172F62557A008B6262 /* Logging-Guide.md */,
+				259939192F625599008B6262 /* Logging-QuickReference.md */,
+				2599391B2F62563F008B6262 /* AppGroup-Verification.md */,
+				2599391D2F625652008B6262 /* AppGroupConfig.swift */,
+				2599391F2F62567A008B6262 /* verify-app-group.sh */,
+				259939212F6256B3008B6262 /* AppGroup-Summary.md */,
 			);
 			path = CarbWiseWidget;
 			sourceTree = "<group>";
@@ -417,9 +440,11 @@
 			buildActionMask = 2147483647;
 			files = (
 				97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */,
+				259939122F625341008B6262 /* CloudSyncChannel-ErrorHandling.md in Resources */,
 				3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */,
 				97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */,
 				97C146FC1CF9000F007C117D /* Main.storyboard in Resources */,
+				259939162F62546A008B6262 /* CloudSyncStore-ThreadSafety.md in Resources */,
 				26E1DD2252B34F399E821FDB /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -428,6 +453,10 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2599391A2F625599008B6262 /* Logging-QuickReference.md in Resources */,
+				2599391C2F62563F008B6262 /* AppGroup-Verification.md in Resources */,
+				259939182F62557A008B6262 /* Logging-Guide.md in Resources */,
+				259939222F6256B3008B6262 /* AppGroup-Summary.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -507,7 +536,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" build";
+			shellScript = "/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" build\n";
 		};
 		BF290BA85CFB9CFC32374540 /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -561,6 +590,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				CW0001A1 /* CarbWiseWidget.swift in Sources */,
+				2599391E2F625652008B6262 /* AppGroupConfig.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -631,6 +661,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 4NWCR79S38;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -911,6 +942,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 4NWCR79S38;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -1068,6 +1100,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 4NWCR79S38;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -1125,6 +1158,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 4NWCR79S38;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
