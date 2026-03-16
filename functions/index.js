@@ -2,6 +2,167 @@ const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
 
 const perplexityApiKey = defineSecret("PERPLEXITY_API_KEY");
+const appStoreSharedSecret = defineSecret("APP_STORE_SHARED_SECRET");
+
+const APPLE_PRODUCTION_VERIFY_URL = "https://buy.itunes.apple.com/verifyReceipt";
+const APPLE_SANDBOX_VERIFY_URL = "https://sandbox.itunes.apple.com/verifyReceipt";
+const PREMIUM_PRODUCT_IDS = new Set([
+  "carpecarb_premium_monthlysub",
+  "carpecarb_premium_yearly",
+]);
+
+function parseMillis(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function getReceiptTransactions(body) {
+  const latest = Array.isArray(body.latest_receipt_info) ? body.latest_receipt_info : [];
+  const receiptInApp = Array.isArray(body.receipt?.in_app) ? body.receipt.in_app : [];
+  return [...latest, ...receiptInApp];
+}
+
+function findLatestActiveSubscription(body) {
+  const now = Date.now();
+  const transactions = getReceiptTransactions(body);
+
+  let latestActive = null;
+
+  for (const transaction of transactions) {
+    const productId = typeof transaction.product_id === "string"
+      ? transaction.product_id
+      : null;
+
+    if (!productId || !PREMIUM_PRODUCT_IDS.has(productId)) {
+      continue;
+    }
+
+    const expiresDateMs = parseMillis(transaction.expires_date_ms);
+    if (expiresDateMs == null || expiresDateMs <= now) {
+      continue;
+    }
+
+    if (!latestActive || expiresDateMs > latestActive.expiresDateMs) {
+      latestActive = {
+        productId,
+        expiresDateMs,
+        transactionId: transaction.transaction_id ?? null,
+        originalTransactionId: transaction.original_transaction_id ?? null,
+      };
+    }
+  }
+
+  return latestActive;
+}
+
+async function postReceiptVerification(url, receiptData, sharedSecret) {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      "receipt-data": receiptData,
+      password: sharedSecret,
+      "exclude-old-transactions": true,
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    console.error(`Apple receipt verification HTTP ${response.status}: ${body}`);
+    throw new HttpsError("internal", "Apple receipt verification request failed.");
+  }
+
+  return response.json();
+}
+
+async function verifyReceiptWithApple(receiptData, sharedSecret, preferSandbox = false) {
+  const firstUrl = preferSandbox
+    ? APPLE_SANDBOX_VERIFY_URL
+    : APPLE_PRODUCTION_VERIFY_URL;
+  const firstResponse = await postReceiptVerification(firstUrl, receiptData, sharedSecret);
+
+  if (firstResponse.status === 21007 && !preferSandbox) {
+    return postReceiptVerification(APPLE_SANDBOX_VERIFY_URL, receiptData, sharedSecret);
+  }
+
+  if (firstResponse.status === 21008 && preferSandbox) {
+    return postReceiptVerification(APPLE_PRODUCTION_VERIFY_URL, receiptData, sharedSecret);
+  }
+
+  return firstResponse;
+}
+
+exports.validateAppStoreReceipt = onCall(
+  {
+    secrets: [appStoreSharedSecret],
+    timeoutSeconds: 30,
+  },
+  async (request) => {
+    const { receiptData, expectedProductId } = request.data || {};
+
+    if (!receiptData || typeof receiptData !== "string") {
+      throw new HttpsError("invalid-argument", "receiptData is required.");
+    }
+
+    if (
+      expectedProductId != null &&
+      (typeof expectedProductId !== "string" || !PREMIUM_PRODUCT_IDS.has(expectedProductId))
+    ) {
+      throw new HttpsError("invalid-argument", "expectedProductId is not recognized.");
+    }
+
+    const sharedSecret = appStoreSharedSecret.value();
+    if (!sharedSecret) {
+      console.error("APP_STORE_SHARED_SECRET is not configured.");
+      throw new HttpsError("internal", "Receipt verification is not configured.");
+    }
+
+    const verification = await verifyReceiptWithApple(receiptData, sharedSecret);
+
+    if (verification.status === 21004) {
+      console.error("App Store shared secret mismatch.");
+      throw new HttpsError("internal", "Receipt verification is misconfigured.");
+    }
+
+    if (![0, 21006].includes(verification.status)) {
+      console.error("App Store rejected receipt:", verification.status, verification.environment);
+      throw new HttpsError("failed-precondition", "App Store could not validate this receipt.");
+    }
+
+    const activeSubscription = findLatestActiveSubscription(verification);
+    if (!activeSubscription) {
+      return {
+        isValid: false,
+        reason: "no-active-subscription",
+        environment: verification.environment ?? null,
+        bundleId: verification.receipt?.bundle_id ?? null,
+      };
+    }
+
+    if (expectedProductId && activeSubscription.productId !== expectedProductId) {
+      return {
+        isValid: false,
+        reason: "product-mismatch",
+        productId: activeSubscription.productId,
+        expiresDateMs: activeSubscription.expiresDateMs,
+        environment: verification.environment ?? null,
+        bundleId: verification.receipt?.bundle_id ?? null,
+      };
+    }
+
+    return {
+      isValid: true,
+      productId: activeSubscription.productId,
+      transactionId: activeSubscription.transactionId,
+      originalTransactionId: activeSubscription.originalTransactionId,
+      expiresDateMs: activeSubscription.expiresDateMs,
+      environment: verification.environment ?? null,
+      bundleId: verification.receipt?.bundle_id ?? null,
+    };
+  }
+);
 
 /**
  * Cloud Function to look up carb counts for one or more food items.

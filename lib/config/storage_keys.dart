@@ -28,6 +28,7 @@ class StorageKeys {
 
   // Premium feature keys
   static const String isPremium = 'is_premium';
+  static const String premiumPlan = 'premium_plan';
   static const String premiumManualEntry = 'premium_manual_entry';
   static const String premiumHealthSync = 'premium_health_sync';
   static const String premiumCloudSync = 'premium_cloud_sync';

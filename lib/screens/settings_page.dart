@@ -9,6 +9,7 @@ import '../config/storage_keys.dart';
 import '../models/food_item.dart';
 import '../services/health_kit_service.dart';
 import '../services/premium_service.dart';
+import '../services/purchase_service.dart';
 import '../services/cloud_sync_service.dart';
 import '../utils/date_format.dart';
 import '../widgets/food_item_card.dart';
@@ -64,6 +65,8 @@ class _SettingsPageState extends State<SettingsPage> {
   int _savedFoodsLoadToken = 0;
   int _historyLoadToken = 0;
   int _macroGoalsLoadToken = 0;
+  final PurchaseService _purchaseService = PurchaseService();
+  Map<String, dynamic> _premiumProducts = {};
 
   // Goal state
   late TextEditingController _goalController;
@@ -109,6 +112,7 @@ class _SettingsPageState extends State<SettingsPage> {
     _resetHour = widget.resetHour;
     _loadSavedFoods();
     _loadMacroGoals();
+    _loadPremiumProducts();
     if (Platform.isIOS && widget.healthKitService != null) {
       _loadHistory();
     } else {
@@ -335,6 +339,21 @@ class _SettingsPageState extends State<SettingsPage> {
           duration: Duration(seconds: 2),
         ),
       );
+    }
+  }
+
+  Future<void> _loadPremiumProducts() async {
+    if (!Platform.isIOS) return;
+    try {
+      final available = await _purchaseService.isStoreAvailable();
+      if (!available) return;
+      final products = await _purchaseService.queryPremiumProducts();
+      if (!mounted) return;
+      setState(() {
+        _premiumProducts = products;
+      });
+    } catch (_) {
+      // Keep static pricing fallback when products cannot be loaded.
     }
   }
 
@@ -1290,47 +1309,265 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  Widget _buildPremiumIncludedItem({
+    required IconData icon,
+    required String title,
+    required String description,
+    required bool isDark,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
+            blurRadius: 6,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          _buildIconBadge(icon),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.check_circle, color: AppColors.sage, size: 20),
+        ],
+      ),
+    );
+  }
+
+  String _planLabel(String? plan) {
+    if (plan == PremiumService.monthlyPlan) {
+      final dynamic p = _premiumProducts[PurchaseService.monthlyProductId];
+      final dynamic price = p?.price;
+      return (price is String && price.isNotEmpty)
+          ? '$price/month'
+          : r'$2.99/month';
+    }
+    if (plan == PremiumService.yearlyPlan) {
+      final dynamic p = _premiumProducts[PurchaseService.yearlyProductId];
+      final dynamic price = p?.price;
+      return (price is String && price.isNotEmpty)
+          ? '$price/year'
+          : r'$29.99/year';
+    }
+    return 'Not selected';
+  }
+
+  Future<String?> _showPremiumPaywall(bool isDark) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    Widget planButton({
+      required String title,
+      required String price,
+      required String value,
+      required bool highlighted,
+    }) {
+      return Container(
+        width: double.infinity,
+        margin: const EdgeInsets.only(bottom: 10),
+        child: OutlinedButton(
+          style: OutlinedButton.styleFrom(
+            side: BorderSide(
+              color: highlighted
+                  ? AppColors.sage
+                  : colorScheme.outline.withValues(alpha: 0.4),
+              width: highlighted ? 1.6 : 1.0,
+            ),
+            backgroundColor: highlighted
+                ? AppColors.sage.withValues(alpha: 0.08)
+                : (isDark ? AppColors.darkSurface : Colors.white),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          ),
+          onPressed: () => Navigator.of(context).pop(value),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+              ),
+              Text(
+                price,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.sage,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: isDark ? AppColors.darkBackground : colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Unlock CarpeCarb Premium',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Track smarter with advanced logging, syncing, and macro insights.',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  '- Manual Entry\n- Apple Health Sync\n- Cloud Sync across devices\n- Macro Nutrients tracking',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: colorScheme.onSurface,
+                    height: 1.6,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                planButton(
+                  title: 'Monthly',
+                  price: _planLabel(PremiumService.monthlyPlan),
+                  value: PremiumService.monthlyPlan,
+                  highlighted: false,
+                ),
+                planButton(
+                  title: 'Yearly',
+                  price: _planLabel(PremiumService.yearlyPlan),
+                  value: PremiumService.yearlyPlan,
+                  highlighted: true,
+                ),
+                const SizedBox(height: 6),
+                Center(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Not now'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildPremiumTab(ColorScheme colorScheme, bool isDark) {
     final ps = widget.premiumService;
+    final selectedPlan = ps?.premiumPlan;
 
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 24.0),
       children: [
         _buildPremiumFeatureCard(
-          icon: Icons.edit_note,
-          title: 'Manual Entry',
-          description: 'Enter food name and carb count directly',
-          value: ps?.isManualEntryEnabled ?? false,
-          enabled: ps?.isPremium ?? false,
-          isDark: isDark,
-          onChanged: (v) async {
-            await ps?.setFeatureEnabled(StorageKeys.premiumManualEntry, v);
-            if (!mounted) return;
-            setState(() {});
-          },
-        ),
-        _buildPremiumFeatureCard(
-          icon: Icons.favorite_border,
-          title: 'Apple Health Sync',
-          description: 'Sync carb data with Apple Health',
-          value: ps?.isHealthSyncEnabled ?? false,
-          enabled: ps?.isPremium ?? false,
-          isDark: isDark,
-          onChanged: (v) async {
-            await ps?.setFeatureEnabled(StorageKeys.premiumHealthSync, v);
-            if (!mounted) return;
-            setState(() {});
-          },
-        ),
-        _buildPremiumFeatureCard(
-          icon: Icons.cloud_outlined,
-          title: 'Cloud Sync',
-          description: 'Sync data across your devices via iCloud',
-          value: ps?.isCloudSyncEnabled ?? false,
-          enabled: ps?.isPremium ?? false,
+          icon: Icons.workspace_premium,
+          title: 'Premium Access',
+          description: ps?.isPremium == true
+              ? 'Active plan: ${_planLabel(selectedPlan)}'
+              : 'Enable all premium features after purchase',
+          value: ps?.isPremium ?? false,
+          enabled: true,
+          badge: ps?.isPremium == true ? 'ACTIVE' : null,
           isDark: isDark,
           onChanged: (v) async {
             if (v) {
+              if (!Platform.isIOS) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Purchases are currently available on iOS.'),
+                    duration: Duration(seconds: 3),
+                  ),
+                );
+                setState(() {});
+                return;
+              }
+
+              final plan = await _showPremiumPaywall(isDark);
+              if (plan == null) {
+                if (!mounted) return;
+                setState(() {});
+                return;
+              }
+
+              bool purchased = false;
+              try {
+                purchased = await _purchaseService.purchasePlan(plan);
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Purchase failed: $e'),
+                      duration: const Duration(seconds: 3),
+                    ),
+                  );
+                }
+              }
+              if (!purchased) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Purchase not completed.'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }
+                setState(() {});
+                return;
+              }
+
               final available =
                   await widget.cloudSyncService?.isAvailable() ?? false;
               if (!available && mounted) {
@@ -1341,31 +1578,98 @@ class _SettingsPageState extends State<SettingsPage> {
                     duration: Duration(seconds: 3),
                   ),
                 );
-                return;
               }
-            }
-            await ps?.setFeatureEnabled(StorageKeys.premiumCloudSync, v);
-            if (v) {
+
+              await ps?.setPremiumEnabled(true, plan: plan);
               widget.onCloudSyncEnabled?.call();
             } else {
+              await ps?.setPremiumEnabled(false);
               await widget.cloudSyncService?.stopListening();
             }
+
             if (!mounted) return;
             setState(() {});
           },
         ),
-        _buildPremiumFeatureCard(
+        const SizedBox(height: 4),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: () async {
+              if (!Platform.isIOS) return;
+              String? restoredPlan;
+              try {
+                restoredPlan = await _purchaseService.restorePremiumPlan();
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Restore failed: $e'),
+                    duration: const Duration(seconds: 3),
+                  ),
+                );
+                return;
+              }
+              if (restoredPlan == null) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content:
+                        Text('No active premium purchase found to restore.'),
+                    duration: Duration(seconds: 3),
+                  ),
+                );
+                return;
+              }
+
+              await ps?.setPremiumEnabled(true, plan: restoredPlan);
+              widget.onCloudSyncEnabled?.call();
+              if (!mounted) return;
+              setState(() {});
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Restored ${_planLabel(restoredPlan)} plan.'),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            },
+            child: const Text('Restore Purchases'),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Included with Premium',
+          style: TextStyle(
+            fontSize: 13,
+            letterSpacing: 1.0,
+            fontWeight: FontWeight.w700,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 10),
+        _buildPremiumIncludedItem(
+          icon: Icons.edit_note,
+          title: 'Manual Entry',
+          description: 'Enter food name and carb count directly',
+          isDark: isDark,
+        ),
+        _buildPremiumIncludedItem(
+          icon: Icons.favorite_border,
+          title: 'Apple Health Sync',
+          description: 'Sync carb data with Apple Health',
+          isDark: isDark,
+        ),
+        _buildPremiumIncludedItem(
+          icon: Icons.cloud_outlined,
+          title: 'Cloud Sync',
+          description: 'Sync data across your devices via iCloud',
+          isDark: isDark,
+        ),
+        _buildPremiumIncludedItem(
           icon: Icons.bar_chart,
           title: 'Macro Nutrients',
           description: 'Track protein, fat, fiber and more',
-          value: ps?.isMacrosEnabled ?? false,
-          enabled: ps?.isPremium ?? false,
           isDark: isDark,
-          onChanged: (v) async {
-            await ps?.setFeatureEnabled(StorageKeys.premiumMacros, v);
-            if (!mounted) return;
-            setState(() {});
-          },
         ),
       ],
     );

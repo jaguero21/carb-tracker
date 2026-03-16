@@ -628,34 +628,79 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     }
   }
 
-  Widget _buildModeChip(String label, bool isActive, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isActive ? AppColors.sage : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isActive
-                ? AppColors.sage
-                : Theme.of(context)
-                    .colorScheme
-                    .onSurfaceVariant
-                    .withValues(alpha: 0.3),
+  Widget _buildModeToggle() {
+    Widget pill(
+        {required String label,
+        required bool selected,
+        required VoidCallback onTap}) {
+      return Expanded(
+        child: GestureDetector(
+          onTap: () {
+            _dismissKeyboard();
+            onTap();
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: selected
+                  ? AppColors.sage
+                  : Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: selected
+                    ? AppColors.sage
+                    : Theme.of(context)
+                        .colorScheme
+                        .onSurfaceVariant
+                        .withValues(alpha: 0.2),
+              ),
+            ),
+            child: Center(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: selected
+                      ? Colors.white
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
           ),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: isActive
-                ? Colors.white
-                : Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: Theme.of(context)
+              .colorScheme
+              .onSurfaceVariant
+              .withValues(alpha: 0.2),
         ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          pill(
+            label: 'Auto',
+            selected: !_isManualEntryMode,
+            onTap: () => setState(() => _isManualEntryMode = false),
+          ),
+          const SizedBox(width: 8),
+          pill(
+            label: 'Manual',
+            selected: _isManualEntryMode,
+            onTap: () => setState(() => _isManualEntryMode = true),
+          ),
+        ],
       ),
     );
   }
@@ -1346,21 +1391,13 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                   ),
                   child: Column(
                     children: [
-                      // Mode toggle (AI Lookup / Manual)
+                      // Mode toggle (Auto / Manual)
                       if (_premiumService.isManualEntryEnabled)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 16),
-                          child: Row(
-                            children: [
-                              _buildModeChip('AI Lookup', !_isManualEntryMode,
-                                  () {
-                                setState(() => _isManualEntryMode = false);
-                              }),
-                              const SizedBox(width: 8),
-                              _buildModeChip('Manual', _isManualEntryMode, () {
-                                setState(() => _isManualEntryMode = true);
-                              }),
-                            ],
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: _buildModeToggle(),
                           ),
                         ),
                       TextField(
