@@ -1,5 +1,6 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
+const crypto = require("crypto");
 
 const perplexityApiKey = defineSecret("PERPLEXITY_API_KEY");
 const appStoreSharedSecret = defineSecret("APP_STORE_SHARED_SECRET");
@@ -94,9 +95,105 @@ async function verifyReceiptWithApple(receiptData, sharedSecret, preferSandbox =
   return firstResponse;
 }
 
+// ---- StoreKit 2 JWS transaction verification ----
+
+function isJWSTransaction(data) {
+  const parts = data.split(".");
+  return parts.length === 3 && parts.every((p) => /^[A-Za-z0-9_-]+$/.test(p));
+}
+
+async function verifyAndDecodeJWSTransaction(jws) {
+  const [headerB64, payloadB64, signatureB64] = jws.split(".");
+
+  let header, payload;
+  try {
+    header = JSON.parse(Buffer.from(headerB64, "base64url").toString("utf8"));
+    payload = JSON.parse(Buffer.from(payloadB64, "base64url").toString("utf8"));
+  } catch {
+    throw new HttpsError("invalid-argument", "Malformed JWS transaction data.");
+  }
+
+  if (!Array.isArray(header.x5c) || header.x5c.length < 2) {
+    throw new HttpsError("internal", "JWS transaction missing certificate chain.");
+  }
+
+  const certPems = header.x5c.map((b64) => {
+    const lines = b64.match(/.{1,64}/g).join("\n");
+    return `-----BEGIN CERTIFICATE-----\n${lines}\n-----END CERTIFICATE-----`;
+  });
+
+  let certs;
+  try {
+    certs = certPems.map((pem) => new crypto.X509Certificate(pem));
+  } catch {
+    throw new HttpsError("internal", "Failed to parse JWS certificates.");
+  }
+
+  // Verify each cert is signed by the next in the chain
+  for (let i = 0; i < certs.length - 1; i++) {
+    if (!certs[i].verify(certs[i + 1].publicKey)) {
+      console.error(`[jws] Certificate chain broken at index ${i}`);
+      throw new HttpsError("internal", "JWS certificate chain is invalid.");
+    }
+  }
+
+  // Root cert must be from Apple
+  const rootCert = certs[certs.length - 1];
+  if (!rootCert.subject.includes("Apple") && !rootCert.issuer.includes("Apple")) {
+    throw new HttpsError("internal", "JWS root certificate is not from Apple.");
+  }
+
+  // Verify the JWS signature (ES256 = ECDSA P-256 with SHA-256)
+  const leafKeyDer = certs[0].publicKey.export({ type: "spki", format: "der" });
+  let leafKey;
+  try {
+    leafKey = await globalThis.crypto.subtle.importKey(
+      "spki",
+      leafKeyDer,
+      { name: "ECDSA", namedCurve: "P-256" },
+      false,
+      ["verify"]
+    );
+  } catch {
+    throw new HttpsError("internal", "Failed to import JWS signing key.");
+  }
+
+  const signedBytes = Buffer.from(`${headerB64}.${payloadB64}`);
+  const sigBytes = Buffer.from(signatureB64, "base64url");
+  const valid = await globalThis.crypto.subtle.verify(
+    { name: "ECDSA", hash: { name: "SHA-256" } },
+    leafKey,
+    sigBytes,
+    signedBytes
+  );
+
+  if (!valid) {
+    throw new HttpsError("internal", "JWS transaction signature is invalid.");
+  }
+
+  return payload;
+}
+
+function findActiveSubscriptionFromJWSPayload(payload) {
+  const productId = typeof payload.productId === "string" ? payload.productId : null;
+  if (!productId || !PREMIUM_PRODUCT_IDS.has(productId)) return null;
+
+  // expiresDate in StoreKit 2 JWS payload is milliseconds since epoch
+  const expiresDateMs = typeof payload.expiresDate === "number" ? payload.expiresDate : null;
+  if (expiresDateMs == null || expiresDateMs <= Date.now()) return null;
+
+  return {
+    productId,
+    expiresDateMs,
+    transactionId: payload.transactionId ?? null,
+    originalTransactionId: payload.originalTransactionId ?? null,
+  };
+}
+
 exports.validateAppStoreReceipt = onCall(
   {
     secrets: [appStoreSharedSecret],
+    invoker: "public",
     timeoutSeconds: 30,
   },
   async (request) => {
@@ -113,31 +210,50 @@ exports.validateAppStoreReceipt = onCall(
       throw new HttpsError("invalid-argument", "expectedProductId is not recognized.");
     }
 
-    const sharedSecret = appStoreSharedSecret.value();
-    if (!sharedSecret) {
-      console.error("APP_STORE_SHARED_SECRET is not configured.");
-      throw new HttpsError("internal", "Receipt verification is not configured.");
+    let activeSubscription;
+    let environment = null;
+    let bundleId = null;
+
+    if (isJWSTransaction(receiptData)) {
+      // StoreKit 2 path: JWS signed transaction
+      console.log("[jws] Processing StoreKit 2 JWS transaction");
+      const payload = await verifyAndDecodeJWSTransaction(receiptData);
+      console.log(`[jws] bundleId=${payload.bundleId} productId=${payload.productId} environment=${payload.environment}`);
+      bundleId = payload.bundleId ?? null;
+      environment = payload.environment ?? null;
+      activeSubscription = findActiveSubscriptionFromJWSPayload(payload);
+    } else {
+      // StoreKit 1 path: legacy base64 App Store receipt
+      console.log("[receipt] Processing legacy App Store receipt");
+      const sharedSecret = appStoreSharedSecret.value();
+      if (!sharedSecret) {
+        console.error("APP_STORE_SHARED_SECRET is not configured.");
+        throw new HttpsError("internal", "Receipt verification is not configured.");
+      }
+
+      const verification = await verifyReceiptWithApple(receiptData, sharedSecret);
+
+      if (verification.status === 21004) {
+        console.error("App Store shared secret mismatch.");
+        throw new HttpsError("internal", "Receipt verification is misconfigured.");
+      }
+
+      if (![0, 21006].includes(verification.status)) {
+        console.error("App Store rejected receipt:", verification.status, verification.environment);
+        throw new HttpsError("failed-precondition", "App Store could not validate this receipt.");
+      }
+
+      bundleId = verification.receipt?.bundle_id ?? null;
+      environment = verification.environment ?? null;
+      activeSubscription = findLatestActiveSubscription(verification);
     }
 
-    const verification = await verifyReceiptWithApple(receiptData, sharedSecret);
-
-    if (verification.status === 21004) {
-      console.error("App Store shared secret mismatch.");
-      throw new HttpsError("internal", "Receipt verification is misconfigured.");
-    }
-
-    if (![0, 21006].includes(verification.status)) {
-      console.error("App Store rejected receipt:", verification.status, verification.environment);
-      throw new HttpsError("failed-precondition", "App Store could not validate this receipt.");
-    }
-
-    const activeSubscription = findLatestActiveSubscription(verification);
     if (!activeSubscription) {
       return {
         isValid: false,
         reason: "no-active-subscription",
-        environment: verification.environment ?? null,
-        bundleId: verification.receipt?.bundle_id ?? null,
+        environment,
+        bundleId,
       };
     }
 
@@ -147,8 +263,8 @@ exports.validateAppStoreReceipt = onCall(
         reason: "product-mismatch",
         productId: activeSubscription.productId,
         expiresDateMs: activeSubscription.expiresDateMs,
-        environment: verification.environment ?? null,
-        bundleId: verification.receipt?.bundle_id ?? null,
+        environment,
+        bundleId,
       };
     }
 
@@ -158,8 +274,8 @@ exports.validateAppStoreReceipt = onCall(
       transactionId: activeSubscription.transactionId,
       originalTransactionId: activeSubscription.originalTransactionId,
       expiresDateMs: activeSubscription.expiresDateMs,
-      environment: verification.environment ?? null,
-      bundleId: verification.receipt?.bundle_id ?? null,
+      environment,
+      bundleId,
     };
   }
 );

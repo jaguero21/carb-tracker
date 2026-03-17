@@ -67,7 +67,19 @@ class PurchaseService {
 
       final data = Map<String, dynamic>.from(result.data);
       if (data['isValid'] != true) {
-        return null;
+        final reason = data['reason']?.toString();
+        if (reason == 'product-mismatch') {
+          final found = data['productId']?.toString() ?? 'unknown';
+          throw Exception(
+            'Receipt was valid but for a different product ($found).',
+          );
+        }
+        if (reason == 'no-active-subscription') {
+          throw Exception(
+            'No active subscription was found in the App Store receipt.',
+          );
+        }
+        throw Exception('Receipt validation failed (${reason ?? 'unknown'}).');
       }
 
       final productId = data['productId']?.toString();
@@ -82,6 +94,11 @@ class PurchaseService {
       );
 
       switch (e.code) {
+        case 'unauthenticated':
+        case 'permission-denied':
+          throw Exception(
+            'Receipt verification is blocked by backend permissions. Please update Cloud Function invoker settings.',
+          );
         case 'invalid-argument':
           throw Exception('The App Store receipt was invalid.');
         case 'failed-precondition':
@@ -139,12 +156,33 @@ class PurchaseService {
             if (purchase.pendingCompletePurchase) {
               await _iap.completePurchase(purchase);
             }
-            if (!completer.isCompleted) completer.complete(false);
+            if (!completer.isCompleted) {
+              if (purchase.status == PurchaseStatus.canceled) {
+                completer.completeError(
+                  Exception('Purchase was canceled in App Store.'),
+                );
+              } else {
+                final purchaseError = purchase.error;
+                final msg =
+                    purchaseError?.message.trim();
+                completer.completeError(
+                  Exception(
+                    msg == null || msg.isEmpty
+                        ? 'App Store reported a purchase error.'
+                        : msg,
+                  ),
+                );
+              }
+            }
           }
         }
       },
-      onError: (_) {
-        if (!completer.isCompleted) completer.complete(false);
+      onError: (e) {
+        if (!completer.isCompleted) {
+          completer.completeError(
+            Exception('Purchase stream error: ${e.toString()}'),
+          );
+        }
       },
       cancelOnError: false,
     );
@@ -155,13 +193,13 @@ class PurchaseService {
 
     if (!started) {
       await sub.cancel();
-      return false;
+      throw Exception('Could not start App Store purchase flow.');
     }
 
     try {
       return await completer.future.timeout(const Duration(seconds: 90));
     } on TimeoutException {
-      return false;
+      throw Exception('Timed out waiting for App Store purchase confirmation.');
     } finally {
       await sub.cancel();
     }

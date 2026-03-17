@@ -1535,6 +1535,22 @@ class _SettingsPageState extends State<SettingsPage> {
                 return;
               }
 
+              final isIosSimulator =
+                  Platform.environment.containsKey('SIMULATOR_DEVICE_NAME');
+              if (isIosSimulator) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'App Store sandbox purchases must be tested on a real iPhone. Simulator only supports local StoreKit testing.',
+                    ),
+                    duration: Duration(seconds: 5),
+                  ),
+                );
+                setState(() {});
+                return;
+              }
+
               final plan = await _showPremiumPaywall(isDark);
               if (plan == null) {
                 if (!mounted) return;
@@ -1553,7 +1569,9 @@ class _SettingsPageState extends State<SettingsPage> {
                       duration: const Duration(seconds: 3),
                     ),
                   );
+                  setState(() {});
                 }
+                return;
               }
               if (!purchased) {
                 if (mounted) {
