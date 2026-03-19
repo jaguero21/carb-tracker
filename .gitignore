@@ -64,6 +64,7 @@ lib/config/api_keys.dart
 
 # Firebase
 ios/Runner/GoogleService-Info.plist
+lib/firebase_options.dart
 
 # Design assets
 ux/

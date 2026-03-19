@@ -1,0 +1,56 @@
+name: iOS Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Install FlutterFire CLI
+        run: dart pub global activate flutterfire_cli
+
+      - name: Generate Firebase config via flutterfire configure
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          # Write service account JSON to a temp file
+          echo "$GOOGLE_APPLICATION_CREDENTIALS_JSON" > /tmp/firebase-service-account.json
+          export GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-service-account.json
+
+          # Regenerate firebase_options.dart and GoogleService-Info.plist
+          flutterfire configure \
+            --project=carpecarb \
+            --platforms=ios \
+            --ios-bundle-id=com.jamesaguero.mycarbtracker \
+            --ios-build-config=Release \
+            --ios-out=ios/Runner/GoogleService-Info.plist \
+            --out=lib/firebase_options.dart \
+            --yes
+
+          # Clean up
+          rm /tmp/firebase-service-account.json
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+
+      - name: Build iOS (no codesign)
+        run: flutter build ios --release --no-codesign
