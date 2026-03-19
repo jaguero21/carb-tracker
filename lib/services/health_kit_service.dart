@@ -49,8 +49,8 @@ class HealthKitService {
   }
 
   /// Write a food item to HealthKit as a meal entry.
-  /// Uses writeMeal() so the food name is preserved as metadata
-  /// visible in Apple Health.
+  /// Writes all available macros (carbs, protein, fat, fiber, calories)
+  /// so Apple Health shows complete nutritional data for premium users.
   Future<bool> writeFoodItem(FoodItem item) async {
     if (!Platform.isIOS || !_isAuthorized) return false;
 
@@ -59,9 +59,13 @@ class HealthKitService {
         mealType: MealType.UNKNOWN,
         startTime: item.loggedAt,
         endTime: item.loggedAt.add(const Duration(minutes: 1)),
-        carbohydrates: item.carbs,
         name: item.name,
         recordingMethod: RecordingMethod.manual,
+        carbohydrates: item.carbs,
+        protein: item.protein,
+        fatTotal: item.fat,
+        fiber: item.fiber,
+        caloriesConsumed: item.calories,
       );
       return success;
     } catch (e) {
@@ -118,8 +122,8 @@ class HealthKitService {
     required int days,
   }) async {
     final now = DateTime.now();
-    final start = DateTime(now.year, now.month, now.day)
-        .subtract(Duration(days: days));
+    final start =
+        DateTime(now.year, now.month, now.day).subtract(Duration(days: days));
     final end = now;
 
     final dataPoints = await fetchNutritionData(start: start, end: end);
@@ -141,6 +145,10 @@ class HealthKitService {
         final nutrition = point.value as NutritionHealthValue;
         entry['name'] = nutrition.name ?? 'Unknown';
         entry['carbs'] = nutrition.carbs ?? 0.0;
+        entry['protein'] = nutrition.protein;
+        entry['fat'] = nutrition.fat;
+        entry['fiber'] = nutrition.fiber;
+        entry['calories'] = nutrition.calories;
       } else {
         entry['name'] = 'Unknown';
         entry['carbs'] = 0.0;
