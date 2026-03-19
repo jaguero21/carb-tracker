@@ -60,42 +60,6 @@ struct CarbDataStore {
     }
 }
 
-// MARK: - .env file reader
-
-struct EnvReader {
-    static func apiKey() -> String? {
-        #if os(watchOS)
-        guard let path = Bundle.main.path(forResource: ".env", ofType: nil) else {
-            return nil
-        }
-        return parseKey(from: path)
-        #else
-        guard let path = Bundle.main.path(forResource: ".env", ofType: nil) ??
-                         Bundle.main.path(forResource: "env", ofType: nil) else {
-            if let assetsPath = Bundle.main.path(forResource: "flutter_assets/.env", ofType: nil) {
-                return parseKey(from: assetsPath)
-            }
-            if let frameworkPath = Bundle.main.path(forResource: "Frameworks/App.framework/flutter_assets/.env", ofType: nil) {
-                return parseKey(from: frameworkPath)
-            }
-            return nil
-        }
-        return parseKey(from: path)
-        #endif
-    }
-
-    private static func parseKey(from path: String) -> String? {
-        guard let content = try? String(contentsOfFile: path, encoding: .utf8) else { return nil }
-        for line in content.components(separatedBy: .newlines) {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            if trimmed.hasPrefix("PERPLEXITY_API_KEY=") {
-                return String(trimmed.dropFirst("PERPLEXITY_API_KEY=".count))
-            }
-        }
-        return nil
-    }
-}
-
 // MARK: - Firebase Cloud Function client
 
 struct PerplexityClient {
