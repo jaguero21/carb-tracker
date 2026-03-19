@@ -12,6 +12,7 @@ class PurchaseService {
 
   final InAppPurchase _iap = InAppPurchase.instance;
   FirebaseFunctions? _functions;
+  bool _purchaseInProgress = false;
 
   FirebaseFunctions get _firebaseFunctions =>
       _functions ??= FirebaseFunctions.instance;
@@ -116,10 +117,16 @@ class PurchaseService {
   }
 
   Future<bool> purchasePlan(String plan) async {
+    if (_purchaseInProgress) {
+      throw Exception('A purchase is already in progress.');
+    }
+    _purchaseInProgress = true;
+
     final productId = productIdForPlan(plan);
     final products = await queryPremiumProducts();
     final product = products[productId];
     if (product == null) {
+      _purchaseInProgress = false;
       throw Exception('Product not found in App Store Connect: $productId');
     }
 
@@ -193,6 +200,7 @@ class PurchaseService {
 
     if (!started) {
       await sub.cancel();
+      _purchaseInProgress = false;
       throw Exception('Could not start App Store purchase flow.');
     }
 
@@ -202,6 +210,7 @@ class PurchaseService {
       throw Exception('Timed out waiting for App Store purchase confirmation.');
     } finally {
       await sub.cancel();
+      _purchaseInProgress = false;
     }
   }
 
