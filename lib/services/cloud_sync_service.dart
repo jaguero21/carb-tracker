@@ -34,12 +34,14 @@ class CloudSyncService {
     }
   }
 
-  /// Push [data] to iCloud. Flutter is responsible for passing all syncable keys.
-  Future<void> pushToCloud(Map<String, dynamic> data) async {
+  /// Push [data] to iCloud. Returns true if the push succeeded.
+  Future<bool> pushToCloud(Map<String, dynamic> data) async {
     try {
       await _channel.invokeMethod('pushToCloud', data);
+      return true;
     } catch (e) {
       dev.log('CloudSyncService.pushToCloud error: $e');
+      return false;
     }
   }
 

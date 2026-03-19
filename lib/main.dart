@@ -226,14 +226,17 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
         final newTs = DateTime.now().toIso8601String();
         // Build push from current local state (not incoming data) so we don't
         // propagate stale goal/settings values that may have changed locally.
-        _cloudSyncService.pushToCloud({
+        final pushed = await _cloudSyncService.pushToCloud({
           ..._buildSyncPayload(prefs),
           StorageKeys.foodItems: mergedJson,
           StorageKeys.cloudLastModified: newTs,
         });
-        // Save the new timestamp locally so we don't re-apply on next resume.
-        await prefs.setString(StorageKeys.cloudLastModified, newTs);
-        pushedMergedList = true;
+        // Only advance the local timestamp if the push succeeded. If it failed,
+        // keep the old timestamp so we retry on next sync.
+        if (pushed) {
+          await prefs.setString(StorageKeys.cloudLastModified, newTs);
+          pushedMergedList = true;
+        }
       }
     }
 
