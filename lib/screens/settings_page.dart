@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:keyboard_actions/keyboard_actions.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import '../config/app_colors.dart';
@@ -92,6 +93,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Map<DateTime, List<Map<String, dynamic>>> _dailyHistory = {};
   bool _isHistoryLoading = true;
   bool _hasPermission = true;
+  bool _historyTimedOut = false;
 
   static const _tabIcons = [
     Icons.bookmark_border,
@@ -200,12 +202,39 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _removeSavedFood(int index) async {
+    final removed = _savedFoods[index];
     setState(() => _savedFoods.removeAt(index));
     HapticFeedback.mediumImpact();
+
     final prefs = await SharedPreferences.getInstance();
     final encoded = jsonEncode(_savedFoods.map((f) => f.toJson()).toList());
     await prefs.setString(StorageKeys.savedFoods, encoded);
     widget.onFavoritesChanged?.call();
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${removed.name} removed'),
+        duration: const Duration(seconds: 4),
+        action: SnackBarAction(
+          label: 'Undo',
+          textColor: Colors.white,
+          onPressed: () async {
+            setState(() {
+              _savedFoods.insert(
+                  index.clamp(0, _savedFoods.length), removed);
+            });
+            final p = await SharedPreferences.getInstance();
+            await p.setString(
+                StorageKeys.savedFoods,
+                jsonEncode(
+                    _savedFoods.map((f) => f.toJson()).toList()));
+            widget.onFavoritesChanged?.call();
+          },
+        ),
+      ),
+    );
   }
 
   // ── History ──
@@ -213,6 +242,10 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _loadHistory() async {
     final token = ++_historyLoadToken;
     final hs = widget.healthKitService!;
+    setState(() {
+      _isHistoryLoading = true;
+      _historyTimedOut = false;
+    });
     final hasPerms = await hs.hasPermissions();
     if (!mounted || token != _historyLoadToken) return;
     if (!hasPerms) {
@@ -226,12 +259,22 @@ class _SettingsPageState extends State<SettingsPage> {
         return;
       }
     }
-    final history = await hs.fetchDailyHistory(days: 30);
-    if (!mounted || token != _historyLoadToken) return;
-    setState(() {
-      _dailyHistory = history;
-      _isHistoryLoading = false;
-    });
+    try {
+      final history = await hs
+          .fetchDailyHistory(days: 30)
+          .timeout(const Duration(seconds: 10));
+      if (!mounted || token != _historyLoadToken) return;
+      setState(() {
+        _dailyHistory = history;
+        _isHistoryLoading = false;
+      });
+    } on TimeoutException {
+      if (!mounted || token != _historyLoadToken) return;
+      setState(() {
+        _isHistoryLoading = false;
+        _historyTimedOut = true;
+      });
+    }
   }
 
   String _formatDate(DateTime date) {
@@ -415,11 +458,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final colorScheme = Theme.of(context).colorScheme;
     return TextButton(
       onPressed: () {
-        if (isPrimary) {
-          HapticFeedback.lightImpact();
-        } else {
-          HapticFeedback.selectionClick();
-        }
+        HapticFeedback.lightImpact();
         onPressed();
       },
       style: TextButton.styleFrom(
@@ -747,6 +786,43 @@ class _SettingsPageState extends State<SettingsPage> {
           child: CircularProgressIndicator(color: AppColors.sage));
     }
 
+    if (_historyTimedOut) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.cloud_off,
+                  size: 64, color: colorScheme.onSurfaceVariant),
+              const SizedBox(height: 16),
+              Text(
+                'History load timed out',
+                style: TextStyle(
+                    fontSize: 18, color: colorScheme.onSurface,
+                    fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'HealthKit took too long to respond.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 14, color: colorScheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 24),
+              FilledButton.icon(
+                onPressed: _loadHistory,
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Retry'),
+                style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.sage),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     if (!_hasPermission) {
       return Center(
         child: Padding(
@@ -863,11 +939,27 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             ...entries.map((entry) {
               final time = entry['time'] as DateTime;
+              final name = entry['name'] as String? ?? 'Unknown';
+              final carbs = (entry['carbs'] as num?)?.toDouble() ?? 0.0;
               return FoodItemCard(
-                name: entry['name'] as String? ?? 'Unknown',
+                name: name,
                 subtitle: formatTime(time),
-                carbs: (entry['carbs'] as num?)?.toDouble() ?? 0.0,
+                carbs: carbs,
                 category: FoodCategory.fromTime(time),
+                onTap: widget.onAddFood == null
+                    ? null
+                    : () {
+                        HapticFeedback.lightImpact();
+                        widget.onAddFood!(FoodItem(name: name, carbs: carbs));
+                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                                '$name added (${carbs.toStringAsFixed(1)}g)'),
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      },
               );
             }),
           ],

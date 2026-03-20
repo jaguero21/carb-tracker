@@ -66,6 +66,8 @@ class CarbTrackerApp extends StatelessWidget {
   }
 }
 
+enum _CloudSyncState { idle, syncing, synced, error }
+
 class CarbTrackerHome extends StatefulWidget {
   const CarbTrackerHome({super.key});
 
@@ -101,6 +103,8 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   int _currentPage = 0; // 0 = home, 1 = settings
   int _loadSavedDataToken = 0;
   int _importSiriItemsToken = 0;
+  bool _healthKitSyncError = false;
+  _CloudSyncState _cloudSyncState = _CloudSyncState.idle;
 
   @override
   void initState() {
@@ -247,7 +251,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
         final newTs = DateTime.now().toIso8601String();
         // Build push from current local state (not incoming data) so we don't
         // propagate stale goal/settings values that may have changed locally.
-        final pushed = await _cloudSyncService.pushToCloud({
+        final pushed = await _pushToCloud({
           ..._buildSyncPayload(prefs),
           StorageKeys.foodItems: mergedJson,
           StorageKeys.cloudLastModified: newTs,
@@ -414,7 +418,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       // Sync Siri-logged items to HealthKit
       if (_premiumService.isHealthSyncEnabled) {
         for (final foodItem in newItems) {
-          _healthKitService.writeFoodItem(foodItem);
+          _writeToHealthKit(foodItem);
         }
       }
     } catch (e) {
@@ -437,8 +441,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     // Push to iCloud if cloud sync is enabled
     if (_premiumService.isCloudSyncEnabled) {
       final ts = DateTime.now().toIso8601String();
-      final pushed =
-          await _cloudSyncService.pushToCloud(_buildSyncPayload(prefs, timestamp: ts));
+      final pushed = await _pushToCloud(_buildSyncPayload(prefs, timestamp: ts));
       if (pushed) await prefs.setString(StorageKeys.cloudLastModified, ts);
     }
   }
@@ -505,10 +508,10 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       await _saveData();
       await _updateWidget();
 
-      // Write each item to HealthKit (fire-and-forget)
+      // Write each item to HealthKit
       if (_premiumService.isHealthSyncEnabled) {
         for (final item in items) {
-          _healthKitService.writeFoodItem(item);
+          _writeToHealthKit(item);
         }
       }
     } catch (e) {
@@ -557,7 +560,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     if (carbs == null || carbs < 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Please enter a valid carb amount'),
+          content: const Text('Carbs must be a number (e.g., 45 or 45.5)'),
           backgroundColor: AppColors.honey.withValues(alpha: 0.9),
           duration: const Duration(seconds: 2),
         ),
@@ -580,8 +583,33 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     _saveData();
     _updateWidget();
     if (_premiumService.isHealthSyncEnabled) {
-      _healthKitService.writeFoodItem(item);
+      _writeToHealthKit(item);
     }
+  }
+
+  void _confirmReset() {
+    if (foodItems.isEmpty) return;
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reset today\'s log?'),
+        content: const Text('All food items will be removed.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _resetTotal();
+            },
+            style: TextButton.styleFrom(foregroundColor: AppColors.terracotta),
+            child: const Text('Reset'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _resetTotal() {
@@ -601,7 +629,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     // Delete all reset items from HealthKit
     if (_premiumService.isHealthSyncEnabled) {
       for (final item in snapshot) {
-        _healthKitService.deleteFoodItem(item);
+        _deleteFromHealthKit(item);
       }
     }
     _saveData();
@@ -621,7 +649,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     _saveData();
     _updateWidget();
     if (_premiumService.isHealthSyncEnabled) {
-      _healthKitService.deleteFoodItem(removedItem);
+      _deleteFromHealthKit(removedItem);
     }
 
     if (mounted) {
@@ -644,7 +672,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
               _saveData();
               _updateWidget();
               if (_premiumService.isHealthSyncEnabled) {
-                _healthKitService.writeFoodItem(removedItem);
+                _writeToHealthKit(removedItem);
               }
             },
           ),
@@ -820,6 +848,84 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     );
   }
 
+  /// Writes a food item to HealthKit and tracks sync status.
+  /// Only notifies the user the first time a failure occurs (when transitioning
+  /// from OK → failed) so batch writes don't stack up multiple snackbars.
+  void _writeToHealthKit(FoodItem item) {
+    _healthKitService.writeFoodItem(item).then((success) {
+      if (!mounted) return;
+      if (!success) {
+        final wasOk = !_healthKitSyncError;
+        setState(() => _healthKitSyncError = true);
+        if (wasOk) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                  'Health sync failed — check permissions in Settings'),
+              backgroundColor: AppColors.terracotta.withValues(alpha: 0.9),
+              duration: const Duration(seconds: 4),
+              action: SnackBarAction(
+                label: 'Settings',
+                textColor: Colors.white,
+                onPressed: () => setState(() => _currentPage = 1),
+              ),
+            ),
+          );
+        }
+      } else if (_healthKitSyncError) {
+        setState(() => _healthKitSyncError = false);
+      }
+    });
+  }
+
+  /// Deletes a food item from HealthKit and tracks sync status.
+  void _deleteFromHealthKit(FoodItem item) {
+    _healthKitService.deleteFoodItem(item).then((success) {
+      if (!mounted) return;
+      if (!success) {
+        final wasOk = !_healthKitSyncError;
+        setState(() => _healthKitSyncError = true);
+        if (wasOk) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                  'Health sync failed — check permissions in Settings'),
+              backgroundColor: AppColors.terracotta.withValues(alpha: 0.9),
+              duration: const Duration(seconds: 4),
+              action: SnackBarAction(
+                label: 'Settings',
+                textColor: Colors.white,
+                onPressed: () => setState(() => _currentPage = 1),
+              ),
+            ),
+          );
+        }
+      } else if (_healthKitSyncError) {
+        setState(() => _healthKitSyncError = false);
+      }
+    });
+  }
+
+  /// Pushes [payload] to iCloud and tracks sync state for the UI indicator.
+  /// Returns true if the push succeeded (mirrors [CloudSyncService.pushToCloud]).
+  Future<bool> _pushToCloud(Map<String, dynamic> payload) async {
+    if (!mounted) return false;
+    setState(() => _cloudSyncState = _CloudSyncState.syncing);
+    final pushed = await _cloudSyncService.pushToCloud(payload);
+    if (!mounted) return pushed;
+    if (pushed) {
+      setState(() => _cloudSyncState = _CloudSyncState.synced);
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted && _cloudSyncState == _CloudSyncState.synced) {
+          setState(() => _cloudSyncState = _CloudSyncState.idle);
+        }
+      });
+    } else {
+      setState(() => _cloudSyncState = _CloudSyncState.error);
+    }
+    return pushed;
+  }
+
   /// Validates and opens a citation URL.
   /// Only http/https URLs are permitted; anything else (or a parse failure)
   /// shows a brief error message instead of crashing or opening an unsafe URI.
@@ -926,11 +1032,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     final colorScheme = Theme.of(context).colorScheme;
     return TextButton(
       onPressed: () {
-        if (isPrimary) {
-          HapticFeedback.lightImpact();
-        } else {
-          HapticFeedback.selectionClick();
-        }
+        HapticFeedback.lightImpact();
         onPressed();
       },
       style: TextButton.styleFrom(
@@ -1016,8 +1118,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     if (!_premiumService.isCloudSyncEnabled) return;
     final prefs = await SharedPreferences.getInstance();
     final ts = DateTime.now().toIso8601String();
-    final pushed =
-        await _cloudSyncService.pushToCloud(_buildSyncPayload(prefs, timestamp: ts));
+    final pushed = await _pushToCloud(_buildSyncPayload(prefs, timestamp: ts));
     if (pushed) await prefs.setString(StorageKeys.cloudLastModified, ts);
   }
 
@@ -1134,7 +1235,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     _saveData();
     _updateWidget();
     if (_premiumService.isHealthSyncEnabled) {
-      _healthKitService.writeFoodItem(item);
+      _writeToHealthKit(item);
     }
   }
 
@@ -1181,6 +1282,29 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
           ),
         );
       }
+    }
+  }
+
+  Widget _buildCloudSyncIndicator() {
+    switch (_cloudSyncState) {
+      case _CloudSyncState.syncing:
+        return SizedBox(
+          width: 14,
+          height: 14,
+          child: CircularProgressIndicator(
+            strokeWidth: 1.5,
+            color: AppColors.sage,
+          ),
+        );
+      case _CloudSyncState.synced:
+        return Icon(Icons.cloud_done, size: 16, color: AppColors.sage);
+      case _CloudSyncState.error:
+        return Tooltip(
+          message: 'Cloud sync failed',
+          child: Icon(Icons.cloud_off, size: 16, color: AppColors.terracotta),
+        );
+      case _CloudSyncState.idle:
+        return const SizedBox.shrink();
     }
   }
 
@@ -1234,6 +1358,48 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                     ),
                   ),
                   const Spacer(),
+                  if (Platform.isIOS && _premiumService.isCloudSyncEnabled)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: _buildCloudSyncIndicator(),
+                    ),
+                  if (Platform.isIOS &&
+                      _premiumService.isHealthSyncEnabled &&
+                      _healthKitSyncError)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Tooltip(
+                        message: 'Health sync failed — check permissions',
+                        child: GestureDetector(
+                          onTap: () => setState(() => _currentPage = 1),
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Icon(Icons.favorite,
+                                  size: 18, color: AppColors.terracotta),
+                              Positioned(
+                                right: -2,
+                                top: -2,
+                                child: Container(
+                                  width: 7,
+                                  height: 7,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.terracotta,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .surface,
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
                   _buildNavIcon(
                     page: 0,
                     icon: Icon(
@@ -1391,12 +1557,16 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                         if (dailyCarbGoal != null) ...[
                           const SizedBox(height: 8),
                           Text(
-                            'of ${dailyCarbGoal!.toStringAsFixed(0)}g daily goal',
+                            totalCarbs > dailyCarbGoal!
+                                ? '${(totalCarbs - dailyCarbGoal!).toStringAsFixed(0)}g over goal'
+                                : 'of ${dailyCarbGoal!.toStringAsFixed(0)}g daily goal',
                             style: TextStyle(
                               fontSize: 14,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
+                              color: totalCarbs > dailyCarbGoal!
+                                  ? AppColors.terracotta
+                                  : Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -1604,7 +1774,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                         ),
                         const Spacer(),
                         GestureDetector(
-                          onTap: _resetTotal,
+                          onTap: _confirmReset,
                           child: Row(
                             children: [
                               Icon(
@@ -1637,7 +1807,8 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                         child: Padding(
                           padding: const EdgeInsets.symmetric(vertical: 32.0),
                           child: Text(
-                            'No foods added yet',
+                            'Type a food name above to look up its carbs.',
+                            textAlign: TextAlign.center,
                             style: TextStyle(
                               color: Theme.of(context)
                                   .colorScheme
