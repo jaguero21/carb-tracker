@@ -5,15 +5,31 @@ PODS:
     - Flutter
   - device_info_plus (0.0.1):
     - Flutter
+  - Firebase/Auth (12.9.0):
+    - Firebase/CoreOnly
+    - FirebaseAuth (~> 12.9.0)
   - Firebase/CoreOnly (12.9.0):
     - FirebaseCore (~> 12.9.0)
   - Firebase/Functions (12.9.0):
     - Firebase/CoreOnly
     - FirebaseFunctions (~> 12.9.0)
+  - firebase_auth (6.2.0):
+    - Firebase/Auth (= 12.9.0)
+    - firebase_core
+    - Flutter
   - firebase_core (4.5.0):
     - Firebase/CoreOnly (= 12.9.0)
     - Flutter
   - FirebaseAppCheckInterop (12.9.0)
+  - FirebaseAuth (12.9.0):
+    - FirebaseAppCheckInterop (~> 12.9.0)
+    - FirebaseAuthInterop (~> 12.9.0)
+    - FirebaseCore (~> 12.9.0)
+    - FirebaseCoreExtension (~> 12.9.0)
+    - GoogleUtilities/AppDelegateSwizzler (~> 8.1)
+    - GoogleUtilities/Environment (~> 8.1)
+    - GTMSessionFetcher/Core (< 6.0, >= 3.4)
+    - RecaptchaInterop (~> 101.0)
   - FirebaseAuthInterop (12.9.0)
   - FirebaseCore (12.9.0):
     - FirebaseCoreInternal (~> 12.9.0)
@@ -34,14 +50,27 @@ PODS:
   - FirebaseMessagingInterop (12.9.0)
   - FirebaseSharedSwift (12.9.0)
   - Flutter (1.0.0)
+  - GoogleUtilities/AppDelegateSwizzler (8.1.0):
+    - GoogleUtilities/Environment
+    - GoogleUtilities/Logger
+    - GoogleUtilities/Network
+    - GoogleUtilities/Privacy
   - GoogleUtilities/Environment (8.1.0):
     - GoogleUtilities/Privacy
   - GoogleUtilities/Logger (8.1.0):
     - GoogleUtilities/Environment
     - GoogleUtilities/Privacy
+  - GoogleUtilities/Network (8.1.0):
+    - GoogleUtilities/Logger
+    - "GoogleUtilities/NSData+zlib"
+    - GoogleUtilities/Privacy
+    - GoogleUtilities/Reachability
   - "GoogleUtilities/NSData+zlib (8.1.0)":
     - GoogleUtilities/Privacy
   - GoogleUtilities/Privacy (8.1.0)
+  - GoogleUtilities/Reachability (8.1.0):
+    - GoogleUtilities/Logger
+    - GoogleUtilities/Privacy
   - GTMSessionFetcher/Core (5.1.0)
   - health (13.3.1):
     - Flutter
@@ -50,6 +79,7 @@ PODS:
   - in_app_purchase_storekit (0.0.1):
     - Flutter
     - FlutterMacOS
+  - RecaptchaInterop (101.0.0)
   - shared_preferences_foundation (0.0.1):
     - Flutter
     - FlutterMacOS
@@ -59,6 +89,7 @@ PODS:
 DEPENDENCIES:
   - cloud_functions (from `.symlinks/plugins/cloud_functions/ios`)
   - device_info_plus (from `.symlinks/plugins/device_info_plus/ios`)
+  - firebase_auth (from `.symlinks/plugins/firebase_auth/ios`)
   - firebase_core (from `.symlinks/plugins/firebase_core/ios`)
   - Flutter (from `Flutter`)
   - health (from `.symlinks/plugins/health/ios`)
@@ -71,6 +102,7 @@ SPEC REPOS:
   trunk:
     - Firebase
     - FirebaseAppCheckInterop
+    - FirebaseAuth
     - FirebaseAuthInterop
     - FirebaseCore
     - FirebaseCoreExtension
@@ -80,12 +112,15 @@ SPEC REPOS:
     - FirebaseSharedSwift
     - GoogleUtilities
     - GTMSessionFetcher
+    - RecaptchaInterop
 
 EXTERNAL SOURCES:
   cloud_functions:
     :path: ".symlinks/plugins/cloud_functions/ios"
   device_info_plus:
     :path: ".symlinks/plugins/device_info_plus/ios"
+  firebase_auth:
+    :path: ".symlinks/plugins/firebase_auth/ios"
   firebase_core:
     :path: ".symlinks/plugins/firebase_core/ios"
   Flutter:
@@ -105,8 +140,10 @@ SPEC CHECKSUMS:
   cloud_functions: 0c2b3ab8937f9b5b1521c0f1b5203bcd41b308ff
   device_info_plus: 21fcca2080fbcd348be798aa36c3e5ed849eefbe
   Firebase: 065f2bb395062046623036d8e6dc857bc2521d56
+  firebase_auth: eeb19010b5aa7c83cc85f23b6c4f009ea28461f1
   firebase_core: afac1aac13c931e0401c7e74ed1276112030efab
   FirebaseAppCheckInterop: 4bade10286cc977e516f75d2d8312cbdfa534789
+  FirebaseAuth: 3a39f6436c21ebfd7919b698228b4f89ff94c23b
   FirebaseAuthInterop: f8f6ff72dc24621906497fbe5cf3c42ee815e59c
   FirebaseCore: 428912f751178b06bef0a1793effeb4a5e09a9b8
   FirebaseCoreExtension: e911052d59cd0da237a45d706fc0f81654f035c1
@@ -120,6 +157,7 @@ SPEC CHECKSUMS:
   health: 4decf5d74e8f54c58a8c07a385fc72f629a831d9
   home_widget: 54b4f6b36ed8d64cfee594a476225c35c3e45091
   in_app_purchase_storekit: 22cca7d08eebca9babdf4d07d0baccb73325d3c8
+  RecaptchaInterop: 11e0b637842dfb48308d242afc3f448062325aba
   shared_preferences_foundation: 7036424c3d8ec98dfe75ff1667cb0cd531ec82bb
   url_launcher_ios: 7a95fa5b60cc718a708b8f2966718e93db0cef1b
 

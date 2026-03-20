@@ -127,7 +127,7 @@ class FoodItem {
     final loggedAt = _parseLoggedAt(json['loggedAt'], json['name'] as String);
     return FoodItem(
       name: json['name'] as String,
-      carbs: (json['carbs'] as num).toDouble(),
+      carbs: _parseDouble(json['carbs']) ?? 0.0,
       protein: _parseDouble(json['protein']),
       fat: _parseDouble(json['fat']),
       fiber: _parseDouble(json['fiber']),

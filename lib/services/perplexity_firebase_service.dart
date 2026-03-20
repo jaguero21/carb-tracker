@@ -2,6 +2,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 import '../models/food_item.dart';
 import '../utils/input_validation.dart';
+import '../utils/user_facing_exception.dart';
 
 class PerplexityFirebaseService {
   FirebaseFunctions? _functions;
@@ -20,7 +21,7 @@ class PerplexityFirebaseService {
 
     final validationError = InputValidation.validateFoodInput(input);
     if (validationError != null) {
-      throw Exception(validationError);
+      throw UserFacingException(validationError);
     }
 
     try {
@@ -37,7 +38,7 @@ class PerplexityFirebaseService {
 
       if (data['items'] == null) {
         debugPrint('Firebase response missing items: $data');
-        throw Exception('No results returned. Please try again.');
+        throw UserFacingException('No results returned. Please try again.');
       }
 
       final items = data['items'] as List<dynamic>;
@@ -46,7 +47,7 @@ class PerplexityFirebaseService {
           : <String>[];
 
       if (items.isEmpty) {
-        throw Exception(
+        throw UserFacingException(
             'No food items found. Please try a different description.');
       }
 
@@ -78,20 +79,24 @@ class PerplexityFirebaseService {
           'FirebaseFunctionsException: code=${e.code} message=${e.message}');
       switch (e.code) {
         case 'invalid-argument':
-          throw Exception('Invalid food item. Please try again.');
+          throw UserFacingException('Invalid food item. Please try again.');
         case 'resource-exhausted':
-          throw Exception('API rate limit exceeded. Please try again later.');
+          throw UserFacingException(
+              'Rate limit exceeded. Please try again later.');
         case 'unauthenticated':
-          throw Exception('Authentication error. Please restart the app.');
+          throw UserFacingException(
+              'Authentication error. Please restart the app.');
         case 'deadline-exceeded':
-          throw Exception('Request timed out. Please try again.');
+          throw UserFacingException('Request timed out. Please try again.');
         default:
-          throw Exception('Failed to get carb count. Please try again.');
+          throw UserFacingException(
+              'Failed to get carb count. Please try again.');
       }
+    } on UserFacingException {
+      rethrow;
     } catch (e) {
       debugPrint('PerplexityFirebaseService error: $e');
-      if (e.toString().contains('Exception:')) rethrow;
-      throw Exception('Network error. Please check your connection.');
+      throw UserFacingException('Network error. Please check your connection.');
     }
   }
 

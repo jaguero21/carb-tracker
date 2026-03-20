@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
 import 'dart:convert';
 import 'dart:io';
@@ -20,6 +21,7 @@ import 'config/app_theme.dart';
 import 'config/storage_keys.dart';
 import 'utils/date_format.dart';
 import 'utils/input_validation.dart';
+import 'utils/user_facing_exception.dart';
 import 'widgets/food_item_card.dart';
 
 Future<void> main() async {
@@ -30,6 +32,18 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Sign in anonymously so Cloud Functions can verify the caller is our app.
+  // This is non-blocking for existing signed-in users.
+  if (FirebaseAuth.instance.currentUser == null) {
+    try {
+      await FirebaseAuth.instance.signInAnonymously();
+    } catch (e) {
+      // Auth failure is non-fatal — the app works without it, but Cloud
+      // Functions will reject requests until this is resolved.
+      debugPrint('Anonymous sign-in failed: $e');
+    }
+  }
 
   // Initialize HomeWidget for iOS widget data sharing
   HomeWidget.setAppGroupId(StorageKeys.appGroupId);
@@ -204,9 +218,11 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
 
     // ── Food items: merge by loggedAt so both devices' logs are preserved ──
     bool pushedMergedList = false;
-    final cloudSaveDate = data[StorageKeys.lastSaveDate] as String?;
-    if (cloudSaveDate == _todayString() &&
-        data[StorageKeys.foodItems] is String) {
+    final cloudSaveDate = data[StorageKeys.lastSaveDate] is String
+        ? data[StorageKeys.lastSaveDate] as String
+        : null;
+    final today = _todayString();
+    if (cloudSaveDate == today && data[StorageKeys.foodItems] is String) {
       final localItems =
           _parseFoodItemJson(prefs.getString(StorageKeys.foodItems));
       final cloudItems =
@@ -222,7 +238,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
 
       final mergedJson = jsonEncode(merged.map((f) => f.toJson()).toList());
       await prefs.setString(StorageKeys.foodItems, mergedJson);
-      await prefs.setString(StorageKeys.lastSaveDate, cloudSaveDate!);
+      await prefs.setString(StorageKeys.lastSaveDate, today);
 
       // If we contributed local items the cloud didn't have, push the merged
       // list back so the other device also receives them.
@@ -501,11 +517,9 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       });
 
       if (mounted) {
-        // Extract user-friendly error message
-        String errorMessage = e.toString();
-        if (errorMessage.contains('Exception:')) {
-          errorMessage = errorMessage.replaceAll('Exception:', '').trim();
-        }
+        final errorMessage = e is UserFacingException
+            ? e.message
+            : 'Something went wrong. Please try again.';
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -806,6 +820,36 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     );
   }
 
+  /// Validates and opens a citation URL.
+  /// Only http/https URLs are permitted; anything else (or a parse failure)
+  /// shows a brief error message instead of crashing or opening an unsafe URI.
+  Future<void> _launchCitationUrl(String raw) async {
+    final uri = Uri.tryParse(raw.trim());
+    if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not open citation link.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not open citation link.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
   /// Builds a TextSpan that renders [N] citation references as tappable links.
   TextSpan _buildDetailsTextSpan(String text, List<String> citations,
       {required Color baseColor}) {
@@ -834,10 +878,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
         ),
         recognizer: hasUrl
             ? (TapGestureRecognizer()
-              ..onTap = () {
-                launchUrl(Uri.parse(citations[citationIndex]),
-                    mode: LaunchMode.externalApplication);
-              })
+              ..onTap = () => _launchCitationUrl(citations[citationIndex]))
             : null,
       ));
 

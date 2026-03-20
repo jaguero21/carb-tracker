@@ -1,9 +1,53 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
 const crypto = require("crypto");
+const admin = require("firebase-admin");
+
+admin.initializeApp();
+const db = admin.firestore();
 
 const perplexityApiKey = defineSecret("PERPLEXITY_API_KEY");
 const appStoreSharedSecret = defineSecret("APP_STORE_SHARED_SECRET");
+
+/**
+ * Fixed-window rate limiter backed by Firestore.
+ *
+ * @param {string} uid       - Firebase Auth UID
+ * @param {string} action    - Logical action name (used as part of the doc key)
+ * @param {number} limit     - Max requests allowed within the window
+ * @param {number} windowSec - Window size in seconds
+ */
+async function checkRateLimit(uid, action, limit, windowSec) {
+  const docRef = db.collection("rateLimits").doc(`${uid}_${action}`);
+  const nowSec = Math.floor(Date.now() / 1000);
+
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(docRef);
+
+    if (!snap.exists) {
+      tx.set(docRef, { count: 1, windowStart: nowSec });
+      return;
+    }
+
+    const { count, windowStart } = snap.data();
+
+    if (nowSec - windowStart >= windowSec) {
+      // Window has expired — start a fresh one
+      tx.set(docRef, { count: 1, windowStart: nowSec });
+      return;
+    }
+
+    if (count >= limit) {
+      const retryAfter = windowStart + windowSec - nowSec;
+      throw new HttpsError(
+        "resource-exhausted",
+        `Rate limit exceeded. Try again in ${retryAfter} second(s).`
+      );
+    }
+
+    tx.update(docRef, { count: count + 1 });
+  });
+}
 
 const APPLE_PRODUCTION_VERIFY_URL = "https://buy.itunes.apple.com/verifyReceipt";
 const APPLE_SANDBOX_VERIFY_URL = "https://sandbox.itunes.apple.com/verifyReceipt";
@@ -193,10 +237,16 @@ function findActiveSubscriptionFromJWSPayload(payload) {
 exports.validateAppStoreReceipt = onCall(
   {
     secrets: [appStoreSharedSecret],
-    invoker: "public",
     timeoutSeconds: 30,
   },
   async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Authentication required.");
+    }
+
+    // 10 receipt validations per hour per user
+    await checkRateLimit(request.auth.uid, "validateReceipt", 10, 3600);
+
     const { receiptData, expectedProductId } = request.data || {};
 
     if (!receiptData || typeof receiptData !== "string") {
@@ -298,6 +348,13 @@ exports.getMultipleCarbCounts = onCall(
     minInstances: 1,
   },
   async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Authentication required.");
+    }
+
+    // 20 carb lookups per minute per user
+    await checkRateLimit(request.auth.uid, "getCarbCounts", 20, 60);
+
     const { input } = request.data;
 
     // Validate input
