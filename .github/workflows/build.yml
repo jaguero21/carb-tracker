@@ -11,7 +11,7 @@ jobs:
     runs-on: macos-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -52,5 +52,6 @@ jobs:
       - name: Analyze
         run: flutter analyze --no-fatal-infos
 
-      - name: Build iOS (no codesign)
-        run: flutter build ios --release --no-codesign
+      # flutter build ios requires Xcode 26+ (for glassEffect in CarbWiseWidget).
+      # Skip the build step until macos-26 GitHub-hosted runners are available.
+      # Local builds and App Store builds use Xcode 26 directly.
