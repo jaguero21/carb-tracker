@@ -55,6 +55,9 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Functions build cache
+functions/build/
+
 # macOS
 macos/Pods/
 macos/Flutter/ephemeral/
