@@ -133,7 +133,9 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       final prefs = await SharedPreferences.getInstance();
       final cloudTs = pulled[StorageKeys.cloudLastModified] as String? ?? '';
       final localTs = prefs.getString(StorageKeys.cloudLastModified) ?? '';
-      if (cloudTs.isNotEmpty && cloudTs.compareTo(localTs) > 0) {
+      final cloudDt = DateTime.tryParse(cloudTs);
+      final localDt = DateTime.tryParse(localTs);
+      if (cloudDt != null && (localDt == null || cloudDt.isAfter(localDt))) {
         await _applyCloudData(pulled);
       }
     }
@@ -232,11 +234,12 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       final cloudItems =
           _parseFoodItemJson(data[StorageKeys.foodItems] as String);
 
-      // Combine, dedup by loggedAt timestamp, sort newest-first.
+      // Combine, dedup by stable item ID, sort newest-first.
+      // Cloud items take priority so the remote version wins on ID collision.
       final seen = <String>{};
       final merged = <FoodItem>[];
       for (final item in [...cloudItems, ...localItems]) {
-        if (seen.add(item.loggedAt.toIso8601String())) merged.add(item);
+        if (seen.add(item.id)) merged.add(item);
       }
       merged.sort((a, b) => b.loggedAt.compareTo(a.loggedAt));
 

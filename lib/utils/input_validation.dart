@@ -47,17 +47,19 @@ class InputValidation {
       return 'Please enter a valid food name';
     }
 
-    // SECURITY: Validate character set
-    // FIXED: Use literal space instead of \s to prevent control characters
-    // Allows both straight (') and curly (') apostrophes for restaurant names
-    // iOS keyboards insert curly apostrophes by default
-    final validPattern = RegExp(r"^[a-zA-Z0-9 \-,.()&%'/\u2019]+$");
-    if (!validPattern.hasMatch(trimmed)) {
+    // SECURITY: Normalize Unicode confusables (curly apostrophes, dashes, etc.)
+    // before the allow-list check so lookalikes are treated as their ASCII equivalents.
+    final normalized = _normalizeUnicode(trimmed);
+
+    // SECURITY: Validate character set (pure ASCII allow-list).
+    // Use literal space instead of \s to prevent control characters.
+    final validPattern = RegExp(r"^[a-zA-Z0-9 \-,.()&%'/]+$");
+    if (!validPattern.hasMatch(normalized)) {
       return 'Please use only letters, numbers, and common punctuation';
     }
 
     // Prevent numeric-only inputs (not valid food names)
-    if (RegExp(r'^[\d \-,.()]+$').hasMatch(trimmed)) {
+    if (RegExp(r'^[\d \-,.()]+$').hasMatch(normalized)) {
       return 'Please enter a valid food name';
     }
 
@@ -105,18 +107,34 @@ class InputValidation {
     return input.contains('../') || input.contains('..\\');
   }
 
+  /// Normalizes common Unicode confusables to their ASCII equivalents.
+  ///
+  /// Applied before both validation and API sanitization so the regex
+  /// allow-list operates on a consistent, ASCII-like representation.
+  static String _normalizeUnicode(String input) {
+    return input
+        // Apostrophe lookalikes
+        .replaceAll('\u2019', "'") // right single quotation mark (')
+        .replaceAll('\u2018', "'") // left single quotation mark (')
+        .replaceAll('\u02BC', "'") // modifier letter apostrophe
+        .replaceAll('\u0060', "'") // grave accent
+        .replaceAll('\u00B4', "'") // acute accent
+        // Dash lookalikes
+        .replaceAll('\u2013', '-') // en dash
+        .replaceAll('\u2014', '-') // em dash
+        .replaceAll('\u2212', '-'); // minus sign
+  }
+
   /// Sanitizes input before sending to external APIs
   ///
   /// Additional safety layer - removes any control characters that slipped through
-  /// Normalizes curly apostrophes to straight apostrophes
+  /// Normalizes Unicode confusables to ASCII equivalents
   static String sanitizeForApi(String input) {
-    return input
+    return _normalizeUnicode(input)
         .replaceAll('\n', ' ')
         .replaceAll('\r', ' ')
         .replaceAll('\t', ' ')
         .replaceAll('\x00', '') // null bytes
-        .replaceAll(
-            '\u2019', "'") // normalize curly apostrophe (') to straight (')
         .replaceAll(RegExp(r'\s+'), ' ') // collapse multiple spaces
         .trim();
   }

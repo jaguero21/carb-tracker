@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 enum FoodCategory {
@@ -60,6 +62,7 @@ enum FoodCategory {
 }
 
 class FoodItem {
+  final String id;
   final String name;
   final double carbs;
   final double? protein;
@@ -73,6 +76,7 @@ class FoodItem {
   final bool isManualEntry;
 
   FoodItem({
+    String? id,
     required this.name,
     required this.carbs,
     this.protein,
@@ -84,13 +88,28 @@ class FoodItem {
     this.isManualEntry = false,
     DateTime? loggedAt,
     FoodCategory? category,
-  })  : loggedAt = loggedAt ?? DateTime.now(),
+  })  : id = id ?? _generateId(),
+        loggedAt = loggedAt ?? DateTime.now(),
         category = category ?? FoodCategory.fromTime(loggedAt ?? DateTime.now());
+
+  /// Generates a random UUID v4 without external dependencies.
+  static String _generateId() {
+    final random = Random.secure();
+    final bytes = List<int>.generate(16, (_) => random.nextInt(256));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
+    bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant
+    final hex =
+        bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-'
+        '${hex.substring(12, 16)}-${hex.substring(16, 20)}-'
+        '${hex.substring(20, 32)}';
+  }
 
   bool get hasMacros => protein != null || fat != null || fiber != null || calories != null;
 
   Map<String, dynamic> toJson() {
     return {
+      'id': id,
       'name': name,
       'carbs': carbs,
       'loggedAt': loggedAt.toIso8601String(),
@@ -126,6 +145,7 @@ class FoodItem {
   factory FoodItem.fromJson(Map<String, dynamic> json) {
     final loggedAt = _parseLoggedAt(json['loggedAt'], json['name'] as String);
     return FoodItem(
+      id: json['id'] as String?, // null → auto-generate for legacy items
       name: json['name'] as String,
       carbs: _parseDouble(json['carbs']) ?? 0.0,
       protein: _parseDouble(json['protein']),
