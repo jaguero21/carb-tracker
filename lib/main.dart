@@ -126,7 +126,10 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   }
 
   /// Builds the payload of all syncable data for a cloud push.
-  Map<String, dynamic> _buildSyncPayload(SharedPreferences prefs) {
+  /// [timestamp] is written as [StorageKeys.cloudLastModified] so the caller
+  /// can save it locally after a successful push.
+  Map<String, dynamic> _buildSyncPayload(SharedPreferences prefs,
+      {String? timestamp}) {
     return {
       StorageKeys.foodItems:
           jsonEncode(foodItems.map((f) => f.toJson()).toList()),
@@ -138,6 +141,8 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       StorageKeys.fatGoal: fatGoal ?? 0.0,
       StorageKeys.fiberGoal: fiberGoal ?? 0.0,
       StorageKeys.caloriesGoal: caloriesGoal ?? 0.0,
+      StorageKeys.cloudLastModified:
+          timestamp ?? DateTime.now().toIso8601String(),
     };
   }
 
@@ -415,7 +420,10 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
 
     // Push to iCloud if cloud sync is enabled
     if (_premiumService.isCloudSyncEnabled) {
-      _cloudSyncService.pushToCloud(_buildSyncPayload(prefs));
+      final ts = DateTime.now().toIso8601String();
+      final pushed =
+          await _cloudSyncService.pushToCloud(_buildSyncPayload(prefs, timestamp: ts));
+      if (pushed) await prefs.setString(StorageKeys.cloudLastModified, ts);
     }
   }
 
@@ -966,7 +974,10 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   void _onFavoritesChanged() async {
     if (!_premiumService.isCloudSyncEnabled) return;
     final prefs = await SharedPreferences.getInstance();
-    _cloudSyncService.pushToCloud(_buildSyncPayload(prefs));
+    final ts = DateTime.now().toIso8601String();
+    final pushed =
+        await _cloudSyncService.pushToCloud(_buildSyncPayload(prefs, timestamp: ts));
+    if (pushed) await prefs.setString(StorageKeys.cloudLastModified, ts);
   }
 
   Widget _buildFoodTile(FoodItem item) {
@@ -1106,7 +1117,10 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       await prefs.setString(StorageKeys.savedFoods, encoded);
 
       if (_premiumService.isCloudSyncEnabled) {
-        _cloudSyncService.pushToCloud(_buildSyncPayload(prefs));
+        final ts = DateTime.now().toIso8601String();
+        final pushed = await _cloudSyncService
+            .pushToCloud(_buildSyncPayload(prefs, timestamp: ts));
+        if (pushed) await prefs.setString(StorageKeys.cloudLastModified, ts);
       }
 
       if (mounted) {

@@ -31,12 +31,17 @@ public final class CloudSyncStore {
         static let dailyResetHour = "daily_reset_hour"
         static let lastSaveDate = "last_save_date"
         static let lastModified = "cloud_last_modified"
+        static let proteinGoal = "protein_goal"
+        static let fatGoal = "fat_goal"
+        static let fiberGoal = "fiber_goal"
+        static let caloriesGoal = "calories_goal"
     }
 
     /// All data keys (excluding the timestamp)
     private static let dataKeys = [
         Key.foodItems, Key.savedFoods, Key.dailyCarbGoal,
         Key.dailyResetHour, Key.lastSaveDate,
+        Key.proteinGoal, Key.fatGoal, Key.fiberGoal, Key.caloriesGoal,
     ]
 
     /// Callback invoked when remote changes are detected
@@ -95,8 +100,12 @@ public final class CloudSyncStore {
             return
         }
 
-        let timestamp = Self.iso8601.string(from: Date())
-        
+        // Use caller-supplied timestamp if present (so Flutter can track what
+        // was pushed), otherwise generate one.
+        let timestamp = (data[Key.lastModified] as? String)?.isEmpty == false
+            ? data[Key.lastModified] as! String
+            : Self.iso8601.string(from: Date())
+
         logger.info("Pushing \(data.count) keys to iCloud")
 
         // Write to NSUbiquitousKeyValueStore
@@ -105,7 +114,7 @@ public final class CloudSyncStore {
             kvStore.set(value, forKey: key)
             logger.debug("Set key '\(key)'")
         }
-        
+
         kvStore.set(timestamp, forKey: Key.lastModified)
         lastKnownTimestamp = timestamp
         
