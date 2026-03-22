@@ -42,7 +42,7 @@ class SettingsPage extends StatefulWidget {
   final VoidCallback? onFavoritesChanged;
   final PremiumService? premiumService;
   final CloudSyncService? cloudSyncService;
-  final VoidCallback? onCloudSyncEnabled;
+  final Future<void> Function()? onCloudSyncEnabled;
 
   const SettingsPage({
     super.key,
@@ -161,11 +161,15 @@ class _SettingsPageState extends State<SettingsPage> {
     if (!mounted || token != _savedFoodsLoadToken) return;
     final savedJson = prefs.getString(StorageKeys.savedFoods);
     if (savedJson != null) {
-      final List<dynamic> decoded = jsonDecode(savedJson);
-      setState(() {
-        _savedFoods = decoded.map((item) => FoodItem.fromJson(item)).toList();
-        _isFavoritesLoading = false;
-      });
+      try {
+        final List<dynamic> decoded = jsonDecode(savedJson);
+        setState(() {
+          _savedFoods = decoded.map((item) => FoodItem.fromJson(item)).toList();
+          _isFavoritesLoading = false;
+        });
+      } catch (_) {
+        setState(() => _isFavoritesLoading = false);
+      }
     } else {
       setState(() => _isFavoritesLoading = false);
     }
@@ -708,7 +712,7 @@ class _SettingsPageState extends State<SettingsPage> {
             itemBuilder: (context, index) {
               final item = _savedFoods[index];
               return Dismissible(
-                key: Key('saved_${item.name}_$index'),
+                key: Key('saved_${item.id}'),
                 direction: DismissDirection.endToStart,
                 onDismissed: (_) => _removeSavedFood(index),
                 background: Container(
@@ -1691,7 +1695,7 @@ class _SettingsPageState extends State<SettingsPage> {
               }
 
               await ps?.setPremiumEnabled(true, plan: plan);
-              widget.onCloudSyncEnabled?.call();
+              await widget.onCloudSyncEnabled?.call();
             } else {
               await ps?.setPremiumEnabled(false);
               await widget.cloudSyncService?.stopListening();
@@ -1733,7 +1737,7 @@ class _SettingsPageState extends State<SettingsPage> {
               }
 
               await ps?.setPremiumEnabled(true, plan: restoredPlan);
-              widget.onCloudSyncEnabled?.call();
+              await widget.onCloudSyncEnabled?.call();
               if (!mounted) return;
               setState(() {});
               ScaffoldMessenger.of(context).showSnackBar(

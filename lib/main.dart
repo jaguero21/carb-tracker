@@ -398,7 +398,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
         }
         newItems.add(FoodItem(
           name: item['name'] as String,
-          carbs: (item['carbs'] as num).toDouble(),
+          carbs: item['carbs'] is num ? (item['carbs'] as num).toDouble() : 0.0,
           details: item['details'] as String?,
           citations: citations,
           loggedAt: loggedAt ?? DateTime.now(),
@@ -771,9 +771,10 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     );
   }
 
-  void _showFoodDetails(FoodItem item) {
+  Future<void> _showFoodDetails(FoodItem item) async {
     final showMacros = _premiumService.isMacrosEnabled && item.hasMacros;
-    showDialog(
+    final recognizers = <TapGestureRecognizer>[];
+    await showDialog<void>(
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.3),
       builder: (context) => AlertDialog(
@@ -794,6 +795,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                   item.details ?? 'No details available for this item.',
                   item.citations,
                   baseColor: Theme.of(context).colorScheme.onSurface,
+                  recognizers: recognizers,
                 ),
               ),
             ],
@@ -807,6 +809,9 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
         ],
       ),
     );
+    for (final r in recognizers) {
+      r.dispose();
+    }
   }
 
   Widget _buildMacroGrid(FoodItem item, BuildContext context) {
@@ -960,8 +965,9 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   }
 
   /// Builds a TextSpan that renders [N] citation references as tappable links.
+  /// Pass a [recognizers] list to collect created recognizers for later disposal.
   TextSpan _buildDetailsTextSpan(String text, List<String> citations,
-      {required Color baseColor}) {
+      {required Color baseColor, List<TapGestureRecognizer>? recognizers}) {
     final spans = <InlineSpan>[];
     final citationPattern = RegExp(r'\[(\d+)\]');
     var lastEnd = 0;
@@ -978,6 +984,14 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       final citationIndex = refNumber - 1;
       final hasUrl = citationIndex >= 0 && citationIndex < citations.length;
 
+      GestureRecognizer? recognizer;
+      if (hasUrl) {
+        final r = TapGestureRecognizer()
+          ..onTap = () => _launchCitationUrl(citations[citationIndex]);
+        recognizers?.add(r);
+        recognizer = r;
+      }
+
       spans.add(TextSpan(
         text: '[${match.group(1)}]',
         style: TextStyle(
@@ -985,10 +999,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
           fontWeight: hasUrl ? FontWeight.w600 : FontWeight.normal,
           decoration: hasUrl ? TextDecoration.underline : TextDecoration.none,
         ),
-        recognizer: hasUrl
-            ? (TapGestureRecognizer()
-              ..onTap = () => _launchCitationUrl(citations[citationIndex]))
-            : null,
+        recognizer: recognizer,
       ));
 
       lastEnd = match.end;
@@ -1263,8 +1274,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
 
       if (_premiumService.isCloudSyncEnabled) {
         final ts = DateTime.now().toIso8601String();
-        final pushed = await _cloudSyncService
-            .pushToCloud(_buildSyncPayload(prefs, timestamp: ts));
+        final pushed = await _pushToCloud(_buildSyncPayload(prefs, timestamp: ts));
         if (pushed) await prefs.setString(StorageKeys.cloudLastModified, ts);
       }
 
@@ -1445,9 +1455,9 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                     onFavoritesChanged: _onFavoritesChanged,
                     premiumService: _premiumService,
                     cloudSyncService: _cloudSyncService,
-                    onCloudSyncEnabled: () {
-                      _initCloudSync();
-                      _saveData();
+                    onCloudSyncEnabled: () async {
+                      await _initCloudSync();
+                      await _saveData();
                     },
                   ),
                 ],
@@ -1833,7 +1843,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                             child: FadeTransition(
                               opacity: animation,
                               child: Dismissible(
-                                key: Key('${item.name}_$index'),
+                                key: Key(item.id),
                                 direction: DismissDirection.horizontal,
                                 confirmDismiss: (direction) async {
                                   if (direction ==

@@ -23,9 +23,13 @@ async function checkRateLimit(uid, action, limit, windowSec) {
 
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(docRef);
+    // expiresAt is set so a Firestore TTL policy can auto-delete stale docs.
+    // Configure TTL on the `rateLimits` collection using this field in the
+    // Firebase console: Firestore → Data → rateLimits → TTL policy → expiresAt
+    const expiresAt = new Date((nowSec + windowSec * 2) * 1000);
 
     if (!snap.exists) {
-      tx.set(docRef, { count: 1, windowStart: nowSec });
+      tx.set(docRef, { count: 1, windowStart: nowSec, expiresAt });
       return;
     }
 
@@ -33,7 +37,7 @@ async function checkRateLimit(uid, action, limit, windowSec) {
 
     if (nowSec - windowStart >= windowSec) {
       // Window has expired — start a fresh one
-      tx.set(docRef, { count: 1, windowStart: nowSec });
+      tx.set(docRef, { count: 1, windowStart: nowSec, expiresAt });
       return;
     }
 
@@ -45,7 +49,7 @@ async function checkRateLimit(uid, action, limit, windowSec) {
       );
     }
 
-    tx.update(docRef, { count: count + 1 });
+    tx.update(docRef, { count: count + 1, expiresAt });
   });
 }
 
@@ -181,9 +185,13 @@ async function verifyAndDecodeJWSTransaction(jws) {
     }
   }
 
-  // Root cert must be from Apple
+  // Root cert must be from Apple. Check against known Apple Root CA CN values
+  // rather than a loose substring match that any cert with "Apple" could pass.
   const rootCert = certs[certs.length - 1];
-  if (!rootCert.subject.includes("Apple") && !rootCert.issuer.includes("Apple")) {
+  const APPLE_ROOT_CA_CNS = ["CN=Apple Root CA", "CN=Apple Root CA - G3"];
+  const isAppleRoot = APPLE_ROOT_CA_CNS.some((cn) => rootCert.subject.includes(cn));
+  if (!isAppleRoot) {
+    console.error(`[jws] Unexpected root cert subject: ${rootCert.subject}`);
     throw new HttpsError("internal", "JWS root certificate is not from Apple.");
   }
 
@@ -369,11 +377,13 @@ exports.getMultipleCarbCounts = onCall(
       );
     }
 
-    // Sanitize (mirrors InputValidation.sanitizeForApi)
+    // Sanitize (mirrors InputValidation.sanitizeForApi + _normalizeUnicode)
     const sanitized = trimmed
+      // Normalize Unicode confusables before allow-list enforcement
+      .replace(/[\u2019\u2018\u02BC\u0060\u00B4]/g, "'") // apostrophe lookalikes
+      .replace(/[\u2013\u2014\u2212]/g, "-")              // dash lookalikes
       .replace(/[\n\r\t]/g, " ")
       .replace(/\0/g, "")
-      .replace(/\u2019/g, "'")
       .replace(/\s+/g, " ")
       .trim();
 
