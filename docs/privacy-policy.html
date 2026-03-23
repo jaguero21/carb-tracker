@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy — CarpeCarb</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #F5F1EB;
+      color: #2A2520;
+      line-height: 1.7;
+      padding: 0 16px 64px;
+    }
+
+    header {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 48px 0 32px;
+      border-bottom: 1px solid rgba(42,37,32,0.12);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .logo-icon {
+      width: 48px;
+      height: 48px;
+      background: #8FA088;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+
+    .logo-name {
+      font-size: 22px;
+      font-weight: 600;
+      color: #2A2520;
+      letter-spacing: 0.2px;
+    }
+
+    h1 {
+      font-size: 32px;
+      font-weight: 700;
+      color: #2A2520;
+      margin-bottom: 8px;
+    }
+
+    .meta {
+      font-size: 14px;
+      color: #8A7D74;
+    }
+
+    main {
+      max-width: 720px;
+      margin: 40px auto 0;
+    }
+
+    section {
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 28px 32px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(42,37,32,0.06);
+    }
+
+    h2 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #2A2520;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    h2 .icon {
+      width: 28px;
+      height: 28px;
+      background: rgba(143,160,136,0.15);
+      border-radius: 7px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      flex-shrink: 0;
+    }
+
+    p { margin-bottom: 12px; color: #3D3530; font-size: 15px; }
+    p:last-child { margin-bottom: 0; }
+
+    ul {
+      padding-left: 20px;
+      margin-bottom: 12px;
+    }
+
+    ul:last-child { margin-bottom: 0; }
+
+    li {
+      color: #3D3530;
+      font-size: 15px;
+      margin-bottom: 6px;
+    }
+
+    a { color: #8FA088; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .highlight {
+      background: rgba(143,160,136,0.1);
+      border-left: 3px solid #8FA088;
+      border-radius: 0 8px 8px 0;
+      padding: 12px 16px;
+      margin-bottom: 12px;
+      font-size: 15px;
+      color: #3D3530;
+    }
+
+    .highlight:last-child { margin-bottom: 0; }
+
+    .badge {
+      display: inline-block;
+      background: rgba(143,160,136,0.15);
+      color: #4D6B47;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 999px;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+
+    footer {
+      max-width: 720px;
+      margin: 32px auto 0;
+      text-align: center;
+      font-size: 13px;
+      color: #8A7D74;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🥗</div>
+    <span class="logo-name">CarpeCarb</span>
+  </div>
+  <h1>Privacy Policy</h1>
+  <p class="meta">Effective date: March 22, 2026 &nbsp;·&nbsp; Last updated: March 22, 2026</p>
+</header>
+
+<main>
+
+  <section>
+    <h2><span class="icon">👋</span> Overview</h2>
+    <p>CarpeCarb ("we", "our", or "the app") is a carbohydrate tracking tool for iOS. We are committed to protecting your privacy. This policy explains what information we collect, how we use it, and the choices available to you.</p>
+    <div class="highlight">
+      <strong>Short version:</strong> CarpeCarb does not require you to create an account. We do not sell your data. Nutrition lookups are processed anonymously through our server. All food logs are stored on your device and optionally in your private iCloud.
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="icon">📋</span> Information We Collect</h2>
+
+    <p><strong>Information you provide</strong></p>
+    <ul>
+      <li>Food names and carb amounts you enter into the app</li>
+      <li>Daily carb goals and macro nutrition goals you set</li>
+      <li>Foods you save to your Favorites list</li>
+    </ul>
+
+    <p><strong>Information collected automatically</strong></p>
+    <ul>
+      <li><strong>Anonymous Firebase Auth UID</strong> — a randomly generated identifier used solely to enforce per-user rate limits on our nutrition lookup API. It is not linked to your name, email, or any other personal identifier.</li>
+      <li><strong>Rate-limit counters</strong> — short-lived request counts stored in Firebase Firestore, keyed to your anonymous UID, to prevent API abuse. These expire automatically.</li>
+    </ul>
+
+    <p><strong>Information we do NOT collect</strong></p>
+    <ul>
+      <li>Name, email address, or any account credentials</li>
+      <li>Device identifiers (IDFA, IDFV)</li>
+      <li>Precise or approximate location</li>
+      <li>Crash reports or analytics beyond what Apple provides to all developers</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2><span class="icon">🔍</span> Nutrition Lookups</h2>
+    <p>When you search for a food item, the text you type is sent to our Firebase Cloud Function, which forwards it to <strong>Perplexity AI</strong> to retrieve nutrition data. The request is associated only with your anonymous UID — no personal information is transmitted.</p>
+    <p>We do not log or store your food search queries beyond what is necessary for rate limiting. Perplexity AI's use of data is governed by their own <a href="https://www.perplexity.ai/hub/legal/privacy-policy" target="_blank" rel="noopener">Privacy Policy</a>.</p>
+  </section>
+
+  <section>
+    <h2><span class="icon">🍎</span> Apple HealthKit <span class="badge">Premium</span></h2>
+    <p>With your explicit permission, CarpeCarb can read from and write to Apple HealthKit to log nutrition data and display your carb history.</p>
+    <ul>
+      <li>HealthKit data is stored on your device and in your personal iCloud Health account — we never access it on our servers.</li>
+      <li>We do not share HealthKit data with third parties, advertisers, or analytics services.</li>
+      <li>HealthKit data is never used for advertising or marketing.</li>
+      <li>You can revoke HealthKit permission at any time in <strong>Settings → Privacy &amp; Security → Health → CarpeCarb</strong>.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2><span class="icon">☁️</span> iCloud Sync <span class="badge">Premium</span></h2>
+    <p>If you enable Cloud Sync, your food log, favorites, and goals are stored in your personal iCloud account using Firebase Firestore scoped to your anonymous UID. This data is:</p>
+    <ul>
+      <li>Accessible only to you via your Apple ID / Firebase anonymous session</li>
+      <li>Used solely to sync your data across your own devices</li>
+      <li>Never read, analyzed, or shared by us for any other purpose</li>
+    </ul>
+    <p>You can delete your cloud data by contacting us (see below) or by deleting the app on all devices.</p>
+  </section>
+
+  <section>
+    <h2><span class="icon">💳</span> In-App Purchases</h2>
+    <p>Premium subscriptions are processed entirely by Apple via the App Store. We do not receive or store your payment information. Receipt validation is performed server-side using Apple's receipt verification API to confirm your subscription status.</p>
+  </section>
+
+  <section>
+    <h2><span class="icon">🔗</span> Third-Party Services</h2>
+    <p>CarpeCarb uses the following third-party services. Each is governed by its own privacy policy:</p>
+    <ul>
+      <li><strong>Firebase (Google)</strong> — anonymous authentication and Firestore rate-limit storage. <a href="https://firebase.google.com/support/privacy" target="_blank" rel="noopener">Firebase Privacy Policy</a></li>
+      <li><strong>Perplexity AI</strong> — nutrition data lookups. <a href="https://www.perplexity.ai/hub/legal/privacy-policy" target="_blank" rel="noopener">Perplexity Privacy Policy</a></li>
+      <li><strong>Apple HealthKit</strong> — nutrition data (with permission). <a href="https://www.apple.com/legal/privacy/" target="_blank" rel="noopener">Apple Privacy Policy</a></li>
+      <li><strong>Apple App Store</strong> — in-app purchases and subscription management.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2><span class="icon">👶</span> Children's Privacy</h2>
+    <p>CarpeCarb is not directed at children under the age of 13. We do not knowingly collect personal information from children. If you believe a child has provided us with personal information, please contact us and we will promptly delete it.</p>
+  </section>
+
+  <section>
+    <h2><span class="icon">🌍</span> Data Retention &amp; Deletion</h2>
+    <p>Food logs, favorites, and goals are stored locally on your device and deleted when you delete the app.</p>
+    <p>Anonymous rate-limit records in Firestore are automatically expired and deleted after a short window.</p>
+    <p>If you use iCloud Sync, cloud data persists until you request deletion. To request deletion of your cloud data, contact us at the email below and include "Data Deletion Request" in the subject line.</p>
+  </section>
+
+  <section>
+    <h2><span class="icon">🔄</span> Changes to This Policy</h2>
+    <p>We may update this Privacy Policy from time to time. When we do, we will update the "Last updated" date at the top of this page. Continued use of the app after changes constitutes your acceptance of the revised policy.</p>
+  </section>
+
+  <section>
+    <h2><span class="icon">✉️</span> Contact Us</h2>
+    <p>If you have questions or concerns about this Privacy Policy or your data, please contact us:</p>
+    <p><strong>CarpeCarb Support</strong><br>
+    <a href="mailto:support@carpecarb.app">support@carpecarb.app</a></p>
+  </section>
+
+</main>
+
+<footer>
+  <p>© 2026 CarpeCarb. All rights reserved.</p>
+  <p style="margin-top:6px;"><a href="https://github.com/jaguero21/CarpeCarb">GitHub</a></p>
+</footer>
+
+</body>
+</html>
