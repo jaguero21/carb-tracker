@@ -42,4 +42,7 @@ class StorageKeys {
 
   // Cloud sync
   static const String cloudLastModified = 'cloud_last_modified';
+
+  // Disclaimer
+  static const String disclaimerAccepted = 'disclaimer_accepted';
 }

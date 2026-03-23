@@ -119,10 +119,91 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     });
     _loadSavedData();
     _checkWidgetLaunch();
-    // Auto-open keyboard so users can start typing immediately
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _foodFocusNode.requestFocus();
+      _maybeShowDisclaimer();
     });
+  }
+
+  Future<void> _maybeShowDisclaimer() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(StorageKeys.disclaimerAccepted) == true) {
+      if (mounted) _foodFocusNode.requestFocus();
+      return;
+    }
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black.withValues(alpha: 0.4),
+      builder: (context) {
+        final colorScheme = Theme.of(context).colorScheme;
+        return AlertDialog(
+          backgroundColor:
+              colorScheme.surface.withValues(alpha: 0.97),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24)),
+          title: Row(
+            children: [
+              Icon(Icons.info_outline,
+                  color: AppColors.honey, size: 22),
+              const SizedBox(width: 10),
+              const Text('Health Disclaimer',
+                  style: TextStyle(fontSize: 18)),
+            ],
+          ),
+          content: Text(
+            'CarpeCarb provides general nutrition information for '
+            'reference purposes only.\n\n'
+            'The carbohydrate and nutrition data shown in this app '
+            'is not medical advice and should not be used to make '
+            'medical or dietary decisions.\n\n'
+            'Always consult a qualified healthcare professional '
+            'before making changes to your diet, especially if you '
+            'have diabetes, a metabolic condition, or any other '
+            'health concern.',
+            style: TextStyle(
+              fontSize: 14,
+              height: 1.55,
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+          actions: [
+            SizedBox(
+              width: double.infinity,
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: AppColors.primaryGradient,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: TextButton(
+                  onPressed: () async {
+                    await prefs.setBool(
+                        StorageKeys.disclaimerAccepted, true);
+                    if (context.mounted) Navigator.pop(context);
+                  },
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: const Text(
+                    'I Understand',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+          actionsPadding:
+              const EdgeInsets.fromLTRB(20, 4, 20, 20),
+        );
+      },
+    );
+    if (mounted) _foodFocusNode.requestFocus();
   }
 
   Future<void> _initCloudSync() async {
