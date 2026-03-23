@@ -16,8 +16,35 @@
                     <view key="view" contentMode="scaleToFill" id="Ze5-6b-2t3">
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
+                            <!-- App icon centered in view -->
+                            <imageView
+                                contentMode="scaleAspectFit"
+                                image="LaunchImage"
+                                translatesAutoresizingMaskIntoConstraints="NO"
+                                id="icon-img">
+                            </imageView>
+                            <!-- App name label -->
+                            <label
+                                text="CarpeCarb"
+                                textAlignment="center"
+                                translatesAutoresizingMaskIntoConstraints="NO"
+                                id="app-name-lbl">
+                                <fontDescription key="fontDescription" type="system" pointSize="28"/>
+                                <color key="textColor" red="0.16" green="0.13" blue="0.12" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                            </label>
                         </subviews>
-                        <color key="backgroundColor" red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <!-- Cream background: #F5F1EB -->
+                        <color key="backgroundColor" red="0.961" green="0.945" blue="0.922" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <constraints>
+                            <!-- Icon: 120pt wide/tall, centered horizontally, centered vertically with offset -->
+                            <constraint firstItem="icon-img" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="c1"/>
+                            <constraint firstItem="icon-img" firstAttribute="centerY" secondItem="Ze5-6b-2t3" secondAttribute="centerY" constant="-36" id="c2"/>
+                            <constraint firstItem="icon-img" firstAttribute="width" constant="120" id="c3"/>
+                            <constraint firstItem="icon-img" firstAttribute="height" constant="120" id="c4"/>
+                            <!-- Label: below icon, centered -->
+                            <constraint firstItem="app-name-lbl" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="c5"/>
+                            <constraint firstItem="app-name-lbl" firstAttribute="top" secondItem="icon-img" secondAttribute="bottom" constant="20" id="c6"/>
+                        </constraints>
                     </view>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="iYj-Kq-Ea1" userLabel="First Responder" sceneMemberID="firstResponder"/>
@@ -25,4 +52,7 @@
             <point key="canvasLocation" x="53" y="375"/>
         </scene>
     </scenes>
+    <resources>
+        <image name="LaunchImage" width="120" height="120"/>
+    </resources>
 </document>
