@@ -1,5 +1,7 @@
 # CarpeCarb
 
+**Website:** https://jaguero21.github.io/CarpeCarb/
+
 A minimalist iOS app for tracking daily carb intake. Type what you ate in plain language and get instant, AI-powered carb counts with cited sources — no manual database searching required.
 
 ## How It Works
