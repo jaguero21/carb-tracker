@@ -1845,6 +1845,28 @@ class _SettingsPageState extends State<SettingsPage> {
           description: 'Track protein, fat, fiber and more',
           isDark: isDark,
         ),
+        const SizedBox(height: 16),
+        Center(
+          child: TextButton(
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            onPressed: () => launchUrl(
+              Uri.parse('https://jaguero21.github.io/CarpeCarb/'),
+              mode: LaunchMode.externalApplication,
+            ),
+            child: Text(
+              'Learn more at carpecarb.app',
+              style: TextStyle(
+                fontSize: 13,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
       ],
     );
   }
