@@ -45,4 +45,7 @@ class StorageKeys {
 
   // Disclaimer
   static const String disclaimerAccepted = 'disclaimer_accepted';
+
+  // Firebase ID token — written to shared UserDefaults so Siri/Watch extensions can auth
+  static const String firebaseIdToken = 'firebaseIdToken';
 }

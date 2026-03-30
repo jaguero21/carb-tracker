@@ -37,6 +37,10 @@ public struct CarbDataStore {
         return value > 0 ? value : nil
     }
 
+    public static func firebaseIdToken() -> String? {
+        defaults?.string(forKey: "firebaseIdToken")
+    }
+
     public static func addFood(name: String, carbs: Double, details: String? = nil, citations: [String] = []) {
         let newTotal = totalCarbs() + carbs
         defaults?.set(newTotal, forKey: Keys.totalCarbs)

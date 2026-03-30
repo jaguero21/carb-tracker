@@ -26,6 +26,10 @@ public struct PerplexityClient {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 60
 
+        if let token = CarbDataStore.firebaseIdToken(), !token.isEmpty {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
         let body: [String: Any] = [
             "data": [
                 "input": foodItem

@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:home_widget/home_widget.dart';
+import '../config/storage_keys.dart';
 import '../models/food_item.dart';
 import '../utils/input_validation.dart';
 import '../utils/user_facing_exception.dart';
@@ -43,6 +45,9 @@ class PerplexityFirebaseService {
     if (idToken.isEmpty) {
       throw UserFacingException('Authentication error. Please restart the app.');
     }
+
+    // Keep the shared token fresh so Siri/Watch extensions can auth.
+    HomeWidget.saveWidgetData<String>(StorageKeys.firebaseIdToken, idToken);
 
     final body = jsonEncode({'data': {'input': input}});
 
