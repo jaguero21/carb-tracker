@@ -1,34 +1,392 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CarpeCarb Landing Page</title>
-    <style>
-        body {
-            background-color: #f9f3e5; /* Light warm background */
-            color: #6A4A4A; /* Dark warm text */
-            font-family: Arial, sans-serif;
-            text-align: center;
-            padding: 50px;
-        }
-        a {
-            color: #ff6b6b; /* Warm color link */
-            text-decoration: none;
-            font-weight: bold;
-        }
-        a:hover {
-            text-decoration: underline;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CarpeCarb — Smart Carb Tracking for iOS</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #F5F1EB;
+      color: #2A2520;
+      line-height: 1.7;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 64px 24px 48px;
+      text-align: center;
+    }
+
+    .hero-logo {
+      width: 96px;
+      height: 96px;
+      border-radius: 22px;
+      margin: 0 auto 24px;
+      display: block;
+      box-shadow: 0 8px 24px rgba(42,37,32,0.15);
+    }
+
+    .hero h1 {
+      font-size: 42px;
+      font-weight: 800;
+      color: #2A2520;
+      letter-spacing: -0.5px;
+      margin-bottom: 12px;
+    }
+
+    .hero p {
+      font-size: 18px;
+      color: #8A7D74;
+      max-width: 480px;
+      margin: 0 auto 32px;
+    }
+
+    .badge {
+      display: inline-block;
+      background: #8FA088;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 6px 16px;
+      border-radius: 999px;
+      margin: 4px;
+    }
+
+    .badge-outline {
+      display: inline-block;
+      background: transparent;
+      color: #8FA088;
+      border: 1.5px solid #8FA088;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 5px 14px;
+      border-radius: 999px;
+      margin: 4px;
+    }
+
+    /* ── Sections ── */
+    main {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 0 16px 64px;
+    }
+
+    section {
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 28px 32px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(42,37,32,0.06);
+    }
+
+    h2 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #2A2520;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    h2 .icon {
+      width: 32px;
+      height: 32px;
+      background: rgba(143,160,136,0.15);
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 17px;
+      flex-shrink: 0;
+    }
+
+    p { color: #3D3530; font-size: 15px; margin-bottom: 12px; }
+    p:last-child { margin-bottom: 0; }
+
+    ul {
+      padding-left: 20px;
+      margin-bottom: 12px;
+    }
+
+    ul:last-child { margin-bottom: 0; }
+
+    li {
+      color: #3D3530;
+      font-size: 15px;
+      margin-bottom: 8px;
+    }
+
+    li strong { color: #2A2520; }
+
+    .step-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 4px;
+    }
+
+    .step-card {
+      background: #FDFAF6;
+      border: 1.5px solid rgba(42,37,32,0.08);
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .step-num {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: #8FA088;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .step-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #2A2520;
+      margin-bottom: 4px;
+    }
+
+    .step-desc {
+      font-size: 13px;
+      color: #8A7D74;
+      line-height: 1.5;
+    }
+
+    .highlight {
+      background: rgba(143,160,136,0.1);
+      border-left: 3px solid #8FA088;
+      border-radius: 0 8px 8px 0;
+      padding: 12px 16px;
+      margin-top: 12px;
+      font-size: 14px;
+      color: #3D3530;
+    }
+
+    a { color: #8FA088; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Premium features ── */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .feature-card {
+      background: #FDFAF6;
+      border: 1.5px solid rgba(42,37,32,0.08);
+      border-radius: 10px;
+      padding: 14px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .feature-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+
+    .feature-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #2A2520;
+      margin-bottom: 2px;
+    }
+
+    .feature-desc {
+      font-size: 12px;
+      color: #8A7D74;
+      line-height: 1.45;
+    }
+
+    /* ── Footer ── */
+    footer {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 24px 16px 48px;
+      text-align: center;
+      font-size: 13px;
+      color: #8A7D74;
+      border-top: 1px solid rgba(42,37,32,0.1);
+    }
+
+    footer a { color: #8FA088; }
+
+    footer .links {
+      margin-top: 10px;
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    footer .links a {
+      font-weight: 500;
+    }
+
+    footer .sep { color: rgba(42,37,32,0.2); }
+
+    @media (max-width: 520px) {
+      .hero h1 { font-size: 30px; }
+      .step-grid { grid-template-columns: 1fr; }
+      .feature-grid { grid-template-columns: 1fr; }
+      section { padding: 20px 18px; }
+    }
+  </style>
 </head>
 <body>
-    <h1>Welcome to CarpeCarb!</h1>
-    <p>Your source for personalized carbohydrate management.</p>
+
+<!-- Hero -->
+<div class="hero">
+  <img src="./app_icon.png" alt="CarpeCarb app icon" class="hero-logo" />
+  <h1>CarpeCarb</h1>
+  <p>AI-powered carb tracking built for iPhone — no accounts, no clutter, just results.</p>
+  <div>
+    <span class="badge">Free to Download</span>
+    <span class="badge-outline">Premium Available</span>
+    <span class="badge-outline">iOS 16+</span>
+  </div>
+</div>
+
+<main>
+
+  <!-- How it works -->
+  <section>
+    <h2><span class="icon">⚡</span> How It Works</h2>
+    <div class="step-grid">
+      <div class="step-card">
+        <div class="step-num">Step 1</div>
+        <div class="step-title">Type any food</div>
+        <div class="step-desc">Describe what you ate — brand names, meals, ingredients, anything.</div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">Step 2</div>
+        <div class="step-title">AI looks it up</div>
+        <div class="step-desc">CarpeCarb sends your query to our secure server, which uses Perplexity AI to find accurate nutrition data.</div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">Step 3</div>
+        <div class="step-title">Results appear instantly</div>
+        <div class="step-desc">Carbs, protein, fat, fiber, and calories are added to your daily log with sources cited.</div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">Step 4</div>
+        <div class="step-title">Track your day</div>
+        <div class="step-desc">Watch your progress ring fill toward your daily carb goal. Resets automatically each morning.</div>
+      </div>
+    </div>
+    <div class="highlight">
+      Your API key is never stored on your device. All AI lookups go through our Firebase Cloud Function — your queries are processed anonymously and never logged.
+    </div>
+  </section>
+
+  <!-- Free features -->
+  <section>
+    <h2><span class="icon">🆓</span> Free Features</h2>
+    <ul>
+      <li><strong>AI nutrition lookup</strong> — type any food and get carbs instantly</li>
+      <li><strong>Daily carb goal</strong> — set your target and track progress with a ring</li>
+      <li><strong>Food log</strong> — see everything you've eaten today with a tap to expand details</li>
+      <li><strong>Favorites</strong> — save frequently eaten foods for one-tap logging</li>
+      <li><strong>History</strong> — review past days and spot patterns</li>
+      <li><strong>Siri shortcuts</strong> — log food or check carbs hands-free</li>
+      <li><strong>Home Screen widget</strong> — see your daily total without opening the app</li>
+      <li><strong>Dark mode</strong> — full light and dark theme support</li>
+    </ul>
+  </section>
+
+  <!-- Premium features -->
+  <section>
+    <h2><span class="icon">✦</span> CarpeCarb Premium</h2>
+    <p>Unlock the full experience with a monthly or yearly subscription.</p>
+    <div class="feature-grid" style="margin-top: 16px;">
+      <div class="feature-card">
+        <div class="feature-icon">✏️</div>
+        <div>
+          <div class="feature-title">Manual Entry</div>
+          <div class="feature-desc">Enter food name and carb count directly — no AI lookup needed.</div>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">❤️</div>
+        <div>
+          <div class="feature-title">Apple Health Sync</div>
+          <div class="feature-desc">Automatically writes nutrition data to Apple Health after every log.</div>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">☁️</div>
+        <div>
+          <div class="feature-title">Cloud Sync</div>
+          <div class="feature-desc">Keep your log, favorites, and goals in sync across all your devices.</div>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📊</div>
+        <div>
+          <div class="feature-title">Macro Tracking</div>
+          <div class="feature-desc">Set goals and track protein, fat, fiber, and calories alongside carbs.</div>
+        </div>
+      </div>
+    </div>
+    <div class="highlight">
+      Subscriptions are billed through the App Store. Cancel anytime via <strong>Settings → Apple ID → Subscriptions</strong>. Subscription automatically renews unless canceled at least 24 hours before the end of the current period.
+    </div>
+  </section>
+
+  <!-- Privacy & Security -->
+  <section>
+    <h2><span class="icon">🔒</span> Privacy &amp; Security</h2>
+    <ul>
+      <li><strong>No account required</strong> — CarpeCarb uses anonymous authentication. We never know who you are.</li>
+      <li><strong>No ads, no data selling</strong> — your food log stays on your device.</li>
+      <li><strong>HealthKit data stays yours</strong> — we never read or transmit your Apple Health data to our servers.</li>
+      <li><strong>Secure API proxy</strong> — the Perplexity AI key lives in Google Cloud Secret Manager, never in the app binary.</li>
+      <li><strong>Rate limited</strong> — all Cloud Functions enforce per-user rate limits via Firestore to prevent abuse.</li>
+    </ul>
+    <p style="margin-top:12px;">Read our full <a href="./privacy-policy.html">Privacy Policy</a> for details.</p>
+  </section>
+
+  <!-- Apple ecosystem -->
+  <section>
+    <h2><span class="icon">🍎</span> Built for the Apple Ecosystem</h2>
+    <ul>
+      <li><strong>Siri App Intents</strong> — "Hey Siri, log a banana in CarpeCarb" or "How many carbs today?"</li>
+      <li><strong>Home Screen widget</strong> — glanceable daily total and last food logged</li>
+      <li><strong>Apple Watch companion</strong> — log food and check totals from your wrist</li>
+      <li><strong>Apple Health</strong> — writes full nutrition data (carbs, protein, fat, fiber, calories) with Premium</li>
+      <li><strong>Shortcuts app</strong> — automate your logging with custom shortcuts</li>
+    </ul>
+  </section>
+
+  <!-- Support -->
+  <section>
+    <h2><span class="icon">✉️</span> Support</h2>
+    <p>Have a question, found a bug, or want to request a feature? We'd love to hear from you.</p>
+    <p><a href="./contact.html">Contact us</a> — we aim to respond within 5 business days.</p>
+    <p>For subscription or billing issues, manage your subscription directly in <strong>Settings → Apple ID → Subscriptions</strong>.</p>
+  </section>
+
+</main>
+
+<footer>
+  <p>© 2026 CarpeCarb. All rights reserved.</p>
+  <div class="links">
     <a href="./privacy-policy.html">Privacy Policy</a>
-    &nbsp;·&nbsp;
-    <a href="./eula.html">Terms of Use (EULA)</a>
-    &nbsp;·&nbsp;
+    <span class="sep">·</span>
+    <a href="./eula.html">Terms of Use</a>
+    <span class="sep">·</span>
     <a href="./contact.html">Contact</a>
+    <span class="sep">·</span>
+    <a href="https://github.com/jaguero21/CarpeCarb">GitHub</a>
+  </div>
+</footer>
+
 </body>
 </html>
