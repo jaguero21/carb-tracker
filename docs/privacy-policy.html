@@ -32,12 +32,16 @@
     .logo-icon {
       width: 48px;
       height: 48px;
-      background: #8FA088;
       border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 24px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .logo-icon img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
     }
 
     .logo-name {
@@ -150,7 +154,7 @@
 
 <header>
   <div class="logo">
-    <div class="logo-icon">🥗</div>
+    <div class="logo-icon"><img src="./app_icon.png" alt="CarpeCarb" /></div>
     <span class="logo-name">CarpeCarb</span>
   </div>
   <h1>Privacy Policy</h1>
