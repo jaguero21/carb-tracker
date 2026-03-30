@@ -574,6 +574,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     try {
       final items = await _perplexityService.getMultipleCarbCounts(foodText);
 
+      if (!mounted) return;
       setState(() {
         isLoading = false;
         showingDailyTotal = false;
@@ -600,6 +601,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
         }
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         isLoading = false;
       });
