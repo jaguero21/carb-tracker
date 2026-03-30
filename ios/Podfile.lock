@@ -1,5 +1,5 @@
 PODS:
-  - cloud_functions (6.0.7):
+  - cloud_functions (6.1.0):
     - Firebase/Functions (= 12.9.0)
     - firebase_core
     - Flutter
@@ -13,11 +13,11 @@ PODS:
   - Firebase/Functions (12.9.0):
     - Firebase/CoreOnly
     - FirebaseFunctions (~> 12.9.0)
-  - firebase_auth (6.2.0):
+  - firebase_auth (6.3.0):
     - Firebase/Auth (= 12.9.0)
     - firebase_core
     - Flutter
-  - firebase_core (4.5.0):
+  - firebase_core (4.6.0):
     - Firebase/CoreOnly (= 12.9.0)
     - Flutter
   - FirebaseAppCheckInterop (12.9.0)
@@ -71,7 +71,7 @@ PODS:
   - GoogleUtilities/Reachability (8.1.0):
     - GoogleUtilities/Logger
     - GoogleUtilities/Privacy
-  - GTMSessionFetcher/Core (5.1.0)
+  - GTMSessionFetcher/Core (5.2.0)
   - health (13.3.1):
     - Flutter
   - home_widget (0.0.1):
@@ -137,11 +137,11 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/url_launcher_ios/ios"
 
 SPEC CHECKSUMS:
-  cloud_functions: 0c2b3ab8937f9b5b1521c0f1b5203bcd41b308ff
+  cloud_functions: 8cfd7ba062db83be645823b41f2b42aa234bcfe3
   device_info_plus: 21fcca2080fbcd348be798aa36c3e5ed849eefbe
   Firebase: 065f2bb395062046623036d8e6dc857bc2521d56
-  firebase_auth: eeb19010b5aa7c83cc85f23b6c4f009ea28461f1
-  firebase_core: afac1aac13c931e0401c7e74ed1276112030efab
+  firebase_auth: 323c64eedef33fc3fdf438d16c29d2624b2ce4f4
+  firebase_core: 8e6f58412ca227827c366b92e7cee047a2148c60
   FirebaseAppCheckInterop: 4bade10286cc977e516f75d2d8312cbdfa534789
   FirebaseAuth: 3a39f6436c21ebfd7919b698228b4f89ff94c23b
   FirebaseAuthInterop: f8f6ff72dc24621906497fbe5cf3c42ee815e59c
@@ -153,7 +153,7 @@ SPEC CHECKSUMS:
   FirebaseSharedSwift: 9d2fa84a46676302b89dbd5e6e62bce2fe376909
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   GoogleUtilities: 00c88b9a86066ef77f0da2fab05f65d7768ed8e1
-  GTMSessionFetcher: b8ab00db932816e14b0a0664a08cb73dda6d164b
+  GTMSessionFetcher: 904bdd2a82c635bcd6f44edf94cc8775c5d1d6e6
   health: 4decf5d74e8f54c58a8c07a385fc72f629a831d9
   home_widget: 54b4f6b36ed8d64cfee594a476225c35c3e45091
   in_app_purchase_storekit: 22cca7d08eebca9babdf4d07d0baccb73325d3c8
