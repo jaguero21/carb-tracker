@@ -1586,6 +1586,16 @@ class _SettingsPageState extends State<SettingsPage> {
                   value: PremiumService.yearlyPlan,
                   highlighted: true,
                 ),
+                const SizedBox(height: 12),
+                Text(
+                  'Subscription automatically renews unless canceled at least 24 hours before the end of the current period. Manage or cancel anytime in Settings > Apple ID > Subscriptions.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: colorScheme.onSurfaceVariant,
+                    height: 1.5,
+                  ),
+                ),
                 const SizedBox(height: 6),
                 Center(
                   child: TextButton(
