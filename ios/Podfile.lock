@@ -1,5 +1,5 @@
 PODS:
-  - cloud_functions (6.0.7):
+  - cloud_functions (6.1.0):
     - Firebase/Functions (= 12.9.0)
     - firebase_core
     - Flutter
@@ -137,7 +137,7 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/url_launcher_ios/ios"
 
 SPEC CHECKSUMS:
-  cloud_functions: 0c2b3ab8937f9b5b1521c0f1b5203bcd41b308ff
+  cloud_functions: 8cfd7ba062db83be645823b41f2b42aa234bcfe3
   device_info_plus: 21fcca2080fbcd348be798aa36c3e5ed849eefbe
   Firebase: 065f2bb395062046623036d8e6dc857bc2521d56
   firebase_auth: 323c64eedef33fc3fdf438d16c29d2624b2ce4f4

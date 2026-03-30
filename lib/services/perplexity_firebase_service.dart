@@ -1,21 +1,23 @@
-import 'package:cloud_functions/cloud_functions.dart';
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import '../models/food_item.dart';
 import '../utils/input_validation.dart';
 import '../utils/user_facing_exception.dart';
 
 class PerplexityFirebaseService {
-  FirebaseFunctions? _functions;
-
-  FirebaseFunctions get _firebaseFunctions =>
-      _functions ??= FirebaseFunctions.instance;
-
   // Rate limiting to prevent UI-level spamming
   static DateTime? _lastRequestTime;
   static const Duration _minRequestInterval = Duration(milliseconds: 1500);
 
+  static const String _functionUrl =
+      'https://us-central1-carpecarb.cloudfunctions.net/getMultipleCarbCounts';
+
   /// Looks up one or more food items via the Firebase Cloud Function.
-  /// Returns a list of FoodItems with individual carb counts and citations.
+  /// Uses direct HTTPS REST call to avoid Firebase Functions SDK AOT crash
+  /// (swift_task_switch in HTTPSCallable.call on iOS 12.9.x SDK).
   Future<List<FoodItem>> getMultipleCarbCounts(String input) async {
     await _enforceRateLimit();
 
@@ -24,26 +26,77 @@ class PerplexityFirebaseService {
       throw UserFacingException(validationError);
     }
 
+    // Get the current user's ID token for authentication
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw UserFacingException('Authentication error. Please restart the app.');
+    }
+
+    String idToken;
     try {
-      final callable = _firebaseFunctions.httpsCallable(
-        'getMultipleCarbCounts',
-        options: HttpsCallableOptions(timeout: const Duration(seconds: 60)),
-      );
+      idToken = await user.getIdToken() ?? '';
+    } catch (e) {
+      debugPrint('Failed to get ID token: $e');
+      throw UserFacingException('Authentication error. Please restart the app.');
+    }
 
-      final result = await callable.call<Map<String, dynamic>>(
-        {'input': input},
-      );
+    if (idToken.isEmpty) {
+      throw UserFacingException('Authentication error. Please restart the app.');
+    }
 
-      final data = result.data;
+    final body = jsonEncode({'data': {'input': input}});
 
-      if (data['items'] == null) {
-        debugPrint('Firebase response missing items: $data');
+    try {
+      final client = HttpClient();
+      client.connectionTimeout = const Duration(seconds: 60);
+
+      final request = await client.postUrl(Uri.parse(_functionUrl));
+      request.headers.set('Content-Type', 'application/json');
+      request.headers.set('Authorization', 'Bearer $idToken');
+      request.write(body);
+
+      final response = await request.close().timeout(const Duration(seconds: 60));
+      final responseBody = await response.transform(utf8.decoder).join();
+      client.close();
+
+      debugPrint('Cloud Function HTTP ${response.statusCode}');
+
+      if (response.statusCode == 401 || response.statusCode == 403) {
+        throw UserFacingException('Authentication error. Please restart the app.');
+      }
+
+      if (response.statusCode == 429) {
+        throw UserFacingException('Rate limit exceeded. Please try again later.');
+      }
+
+      if (response.statusCode != 200) {
+        debugPrint('Cloud Function error body: $responseBody');
+        // Parse Firebase error if present
+        try {
+          final errJson = jsonDecode(responseBody) as Map<String, dynamic>;
+          final errMsg = (errJson['error'] as Map<String, dynamic>?)?['message']
+              as String?;
+          if (errMsg != null && errMsg.isNotEmpty) {
+            throw UserFacingException(errMsg);
+          }
+        } catch (e) {
+          if (e is UserFacingException) rethrow;
+        }
+        throw UserFacingException('Failed to get carb count. Please try again.');
+      }
+
+      final json = jsonDecode(responseBody) as Map<String, dynamic>;
+      // Firebase callable functions wrap response in a `result` key
+      final result = (json['result'] ?? json['data']) as Map<String, dynamic>?;
+
+      if (result == null || result['items'] == null) {
+        debugPrint('Unexpected response shape: $responseBody');
         throw UserFacingException('No results returned. Please try again.');
       }
 
-      final items = data['items'] as List<dynamic>;
-      final citations = data['citations'] != null
-          ? List<String>.from(data['citations'])
+      final items = result['items'] as List<dynamic>;
+      final citations = result['citations'] != null
+          ? List<String>.from(result['citations'] as List)
           : <String>[];
 
       if (items.isEmpty) {
@@ -74,26 +127,10 @@ class PerplexityFirebaseService {
           citations: citations,
         );
       }).toList();
-    } on FirebaseFunctionsException catch (e) {
-      debugPrint(
-          'FirebaseFunctionsException: code=${e.code} message=${e.message}');
-      switch (e.code) {
-        case 'invalid-argument':
-          throw UserFacingException('Invalid food item. Please try again.');
-        case 'resource-exhausted':
-          throw UserFacingException(
-              'Rate limit exceeded. Please try again later.');
-        case 'unauthenticated':
-          throw UserFacingException(
-              'Authentication error. Please restart the app.');
-        case 'deadline-exceeded':
-          throw UserFacingException('Request timed out. Please try again.');
-        default:
-          throw UserFacingException(
-              'Failed to get carb count. Please try again.');
-      }
     } on UserFacingException {
       rethrow;
+    } on SocketException {
+      throw UserFacingException('Network error. Please check your connection.');
     } catch (e) {
       debugPrint('PerplexityFirebaseService error: $e');
       throw UserFacingException('Network error. Please check your connection.');
