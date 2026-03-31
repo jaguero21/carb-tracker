@@ -131,7 +131,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     WidgetsBinding.instance.addObserver(this);
     _premiumService.init().then((_) {
       if (mounted) setState(() {});
-      if (Platform.isIOS && _premiumService.isHealthSyncEnabled) {
+      if (Platform.isIOS) {
         _healthKitService.requestAuthorization();
       }
       _initCloudSync();
@@ -226,7 +226,6 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   }
 
   Future<void> _initCloudSync() async {
-    if (!_premiumService.isCloudSyncEnabled) return;
     await _cloudSyncService.startListening(_onRemoteCloudChange);
     final pulled = await _cloudSyncService.pullFromCloud();
     if (pulled != null && mounted) {
@@ -582,6 +581,29 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       return;
     }
 
+    // Enforce daily lookup limit for free users
+    if (_premiumService.hasReachedDailyLimit) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              "You've used all ${PremiumService.freeDailyLookupLimit} free lookups today. Subscribe to CarpeCarb to get unlimited lookups.",
+            ),
+            backgroundColor: AppColors.terracotta.withValues(alpha: 0.9),
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'Subscribe',
+              textColor: Colors.white,
+              onPressed: () {
+                setState(() => _currentPage = 1);
+              },
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
     // Dismiss keyboard so the user can see results
     _dismissKeyboard();
 
@@ -593,6 +615,9 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       final items = await _perplexityService.getMultipleCarbCounts(foodText);
 
       if (!mounted) return;
+
+      await _premiumService.incrementLookupCount();
+
       setState(() {
         isLoading = false;
         showingDailyTotal = false;
@@ -613,10 +638,8 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       await _updateWidget();
 
       // Write each item to HealthKit
-      if (_premiumService.isHealthSyncEnabled) {
-        for (final item in items) {
-          _writeToHealthKit(item);
-        }
+      for (final item in items) {
+        _writeToHealthKit(item);
       }
     } catch (e) {
       if (!mounted) return;
@@ -1231,7 +1254,6 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   /// Called by SettingsPage when favorites are added/removed, so we can push
   /// the full sync payload (which includes saved_foods) to iCloud.
   void _onFavoritesChanged() async {
-    if (!_premiumService.isCloudSyncEnabled) return;
     final prefs = await SharedPreferences.getInstance();
     final ts = DateTime.now().toIso8601String();
     final pushed = await _pushToCloud(_buildSyncPayload(prefs, timestamp: ts));

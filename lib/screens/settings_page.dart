@@ -102,7 +102,7 @@ class _SettingsPageState extends State<SettingsPage> {
     Icons.adjust,
     Icons.workspace_premium
   ];
-  static const _tabLabels = ['Favorites', 'History', 'Goals', 'Premium'];
+  static const _tabLabels = ['Favorites', 'History', 'Goals', 'Features'];
 
   @override
   void initState() {
@@ -1320,92 +1320,6 @@ class _SettingsPageState extends State<SettingsPage> {
 
   // ── Premium Tab ──
 
-  Widget _buildPremiumFeatureCard({
-    required IconData icon,
-    required String title,
-    required String description,
-    required bool value,
-    required bool enabled,
-    String? badge,
-    required ValueChanged<bool> onChanged,
-    required bool isDark,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurface : Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
-            blurRadius: 6,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          _buildIconBadge(icon),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: enabled
-                            ? Theme.of(context).colorScheme.onSurface
-                            : Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    if (badge != null) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppColors.honey.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          badge,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.honey,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  description,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Switch.adaptive(
-            value: value,
-            onChanged: enabled ? onChanged : null,
-            activeTrackColor: AppColors.sage,
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildPremiumIncludedItem({
     required IconData icon,
     required String title,
@@ -1465,14 +1379,14 @@ class _SettingsPageState extends State<SettingsPage> {
       final dynamic price = p?.price;
       return (price is String && price.isNotEmpty)
           ? '$price/month'
-          : r'$2.99/month';
+          : r'$1.99/month';
     }
     if (plan == PremiumService.yearlyPlan) {
       final dynamic p = _premiumProducts[PurchaseService.yearlyProductId];
       final dynamic price = p?.price;
       return (price is String && price.isNotEmpty)
           ? '$price/year'
-          : r'$29.99/year';
+          : r'$19.99/year';
     }
     return 'Not selected';
   }
@@ -1549,7 +1463,7 @@ class _SettingsPageState extends State<SettingsPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Unlock CarpeCarb Premium',
+                  'Support CarpeCarb',
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w700,
@@ -1558,19 +1472,20 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Track smarter with advanced logging, syncing, and macro insights.',
+                  'Your subscription funds the AI service that powers every carb lookup — and unlocks unlimited daily lookups.',
                   style: TextStyle(
                     fontSize: 14,
                     color: colorScheme.onSurfaceVariant,
+                    height: 1.5,
                   ),
                 ),
                 const SizedBox(height: 14),
                 Text(
-                  '- Manual Entry\n- Apple Health Sync\n- Cloud Sync across devices\n- Macro Nutrients tracking',
+                  '✓  Unlimited AI carb lookups (free plan: ${PremiumService.freeDailyLookupLimit}/day)\n✓  Keep CarpeCarb running\n✓  Early access to new features',
                   style: TextStyle(
                     fontSize: 14,
                     color: colorScheme.onSurface,
-                    height: 1.6,
+                    height: 1.7,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -1662,165 +1577,252 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Widget _buildPremiumTab(ColorScheme colorScheme, bool isDark) {
     final ps = widget.premiumService;
+    final isSubscriber = ps?.isPremium == true;
     final selectedPlan = ps?.premiumPlan;
+    final lookupsToday = ps?.dailyLookupCount ?? 0;
+    final limit = PremiumService.freeDailyLookupLimit;
+
+    Future<void> subscribe() async {
+      if (!Platform.isIOS) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Purchases are currently available on iOS.'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+        return;
+      }
+      if (Platform.environment.containsKey('SIMULATOR_DEVICE_NAME')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'App Store sandbox purchases must be tested on a real iPhone.',
+            ),
+            duration: Duration(seconds: 4),
+          ),
+        );
+        return;
+      }
+
+      final plan = await _showPremiumPaywall(isDark);
+      if (plan == null) {
+        if (mounted) setState(() {});
+        return;
+      }
+
+      bool purchased = false;
+      try {
+        purchased = await _purchaseService.purchasePlan(plan);
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Purchase failed: $e'),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+          setState(() {});
+        }
+        return;
+      }
+
+      if (!purchased) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Purchase not completed.'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+          setState(() {});
+        }
+        return;
+      }
+
+      await ps?.setPremiumEnabled(true, plan: plan);
+      await widget.onCloudSyncEnabled?.call();
+      if (!mounted) return;
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Welcome to CarpeCarb! ${_planLabel(plan)} is now active.'),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+
+    Future<void> restore() async {
+      if (!Platform.isIOS) return;
+      String? restoredPlan;
+      try {
+        restoredPlan = await _purchaseService.restorePremiumPlan();
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Restore failed: $e'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        return;
+      }
+      if (restoredPlan == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No active subscription found to restore.'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+        return;
+      }
+      await ps?.setPremiumEnabled(true, plan: restoredPlan);
+      await widget.onCloudSyncEnabled?.call();
+      if (!mounted) return;
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Restored ${_planLabel(restoredPlan)} plan.'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
 
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 24.0),
       children: [
-        _buildPremiumFeatureCard(
-          icon: Icons.workspace_premium,
-          title: 'Premium Access',
-          description: ps?.isPremium == true
-              ? 'Active plan: ${_planLabel(selectedPlan)}'
-              : 'Enable all premium features after purchase',
-          value: ps?.isPremium ?? false,
-          enabled: true,
-          badge: ps?.isPremium == true ? 'ACTIVE' : null,
-          isDark: isDark,
-          onChanged: (v) async {
-            if (v) {
-              if (!Platform.isIOS) {
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Purchases are currently available on iOS.'),
-                    duration: Duration(seconds: 3),
-                  ),
-                );
-                setState(() {});
-                return;
-              }
+        const SizedBox(height: 8),
 
-              final isIosSimulator =
-                  Platform.environment.containsKey('SIMULATOR_DEVICE_NAME');
-              if (isIosSimulator) {
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'App Store sandbox purchases must be tested on a real iPhone. Simulator only supports local StoreKit testing.',
-                    ),
-                    duration: Duration(seconds: 5),
-                  ),
-                );
-                setState(() {});
-                return;
-              }
-
-              final plan = await _showPremiumPaywall(isDark);
-              if (plan == null) {
-                if (!mounted) return;
-                setState(() {});
-                return;
-              }
-
-              bool purchased = false;
-              try {
-                purchased = await _purchaseService.purchasePlan(plan);
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Purchase failed: $e'),
-                      duration: const Duration(seconds: 3),
-                    ),
-                  );
-                  setState(() {});
-                }
-                return;
-              }
-              if (!purchased) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Purchase not completed.'),
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
-                }
-                setState(() {});
-                return;
-              }
-
-              final available =
-                  await widget.cloudSyncService?.isAvailable() ?? false;
-              if (!available && mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content:
-                        Text('Sign into iCloud in Settings to enable sync'),
-                    duration: Duration(seconds: 3),
-                  ),
-                );
-              }
-
-              await ps?.setPremiumEnabled(true, plan: plan);
-              await widget.onCloudSyncEnabled?.call();
-            } else {
-              await ps?.setPremiumEnabled(false);
-              await widget.cloudSyncService?.stopListening();
-            }
-
-            if (!mounted) return;
-            setState(() {});
-          },
-        ),
-        const SizedBox(height: 4),
-        Align(
-          alignment: Alignment.centerRight,
-          child: TextButton(
-            onPressed: () async {
-              if (!Platform.isIOS) return;
-              String? restoredPlan;
-              try {
-                restoredPlan = await _purchaseService.restorePremiumPlan();
-              } catch (e) {
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Restore failed: $e'),
-                    duration: const Duration(seconds: 3),
-                  ),
-                );
-                return;
-              }
-              if (restoredPlan == null) {
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content:
-                        Text('No active premium purchase found to restore.'),
-                    duration: Duration(seconds: 3),
-                  ),
-                );
-                return;
-              }
-
-              await ps?.setPremiumEnabled(true, plan: restoredPlan);
-              await widget.onCloudSyncEnabled?.call();
-              if (!mounted) return;
-              setState(() {});
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Restored ${_planLabel(restoredPlan)} plan.'),
-                  duration: const Duration(seconds: 2),
-                ),
-              );
-            },
-            child: const Text('Restore Purchases'),
+        // ── Status card ──
+        Container(
+          decoration: BoxDecoration(
+            color: isSubscriber
+                ? AppColors.sage.withValues(alpha: 0.12)
+                : (isDark ? AppColors.darkSurface : Colors.white),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isSubscriber
+                  ? AppColors.sage.withValues(alpha: 0.4)
+                  : colorScheme.outline.withValues(alpha: 0.15),
+            ),
           ),
+          padding: const EdgeInsets.all(20),
+          child: isSubscriber
+              ? Row(
+                  children: [
+                    Icon(Icons.check_circle, color: AppColors.sage, size: 28),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Subscriber',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                              color: colorScheme.onSurface,
+                            ),
+                          ),
+                          Text(
+                            '${_planLabel(selectedPlan)} · Unlimited lookups',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Free Plan',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        color: colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'AI lookups today: $lookupsToday / $limit',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: lookupsToday >= limit
+                            ? AppColors.terracotta
+                            : colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: (lookupsToday / limit).clamp(0.0, 1.0),
+                        minHeight: 6,
+                        backgroundColor:
+                            colorScheme.outline.withValues(alpha: 0.15),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          lookupsToday >= limit
+                              ? AppColors.terracotta
+                              : AppColors.sage,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
         ),
-        const SizedBox(height: 6),
+
+        const SizedBox(height: 16),
+
+        // ── Subscribe button (only when not a subscriber) ──
+        if (!isSubscriber) ...[
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.sage,
+              foregroundColor: Colors.white,
+              minimumSize: const Size(double.infinity, 52),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            onPressed: subscribe,
+            child: const Text(
+              'Subscribe to CarpeCarb',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: restore,
+              child: const Text('Restore Purchases'),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+
+        // ── What your subscription supports ──
         Text(
-          'Included with Premium',
+          isSubscriber ? 'YOUR SUBSCRIPTION INCLUDES' : 'WITH A SUBSCRIPTION',
           style: TextStyle(
-            fontSize: 13,
-            letterSpacing: 1.0,
+            fontSize: 12,
+            letterSpacing: 1.1,
             fontWeight: FontWeight.w700,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            color: colorScheme.onSurfaceVariant,
           ),
         ),
         const SizedBox(height: 10),
+        _buildPremiumIncludedItem(
+          icon: Icons.bolt,
+          title: 'Unlimited AI Lookups',
+          description: 'No daily limit — look up as many foods as you need',
+          isDark: isDark,
+        ),
         _buildPremiumIncludedItem(
           icon: Icons.edit_note,
           title: 'Manual Entry',
@@ -1830,21 +1832,28 @@ class _SettingsPageState extends State<SettingsPage> {
         _buildPremiumIncludedItem(
           icon: Icons.favorite_border,
           title: 'Apple Health Sync',
-          description: 'Sync carb data with Apple Health',
+          description: 'Writes nutrition data to Apple Health automatically',
           isDark: isDark,
         ),
         _buildPremiumIncludedItem(
           icon: Icons.cloud_outlined,
-          title: 'Cloud Sync',
-          description: 'Sync data across your devices via iCloud',
+          title: 'iCloud Sync',
+          description: 'Keeps your log and goals in sync across your devices',
           isDark: isDark,
         ),
         _buildPremiumIncludedItem(
           icon: Icons.bar_chart,
           title: 'Macro Nutrients',
-          description: 'Track protein, fat, fiber and more',
+          description: 'Track protein, fat, fiber, and calories',
           isDark: isDark,
         ),
+        _buildPremiumIncludedItem(
+          icon: Icons.update,
+          title: 'Early Access',
+          description: 'First to try new features as they ship',
+          isDark: isDark,
+        ),
+
         const SizedBox(height: 16),
         Center(
           child: TextButton(
@@ -1861,7 +1870,7 @@ class _SettingsPageState extends State<SettingsPage> {
               'Learn more at carpecarb.app',
               style: TextStyle(
                 fontSize: 13,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
           ),

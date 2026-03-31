@@ -26,13 +26,9 @@ class StorageKeys {
   // iOS widget name
   static const String widgetName = 'CarbWiseWidget';
 
-  // Premium feature keys
+  // Subscription keys
   static const String isPremium = 'is_premium';
   static const String premiumPlan = 'premium_plan';
-  static const String premiumManualEntry = 'premium_manual_entry';
-  static const String premiumHealthSync = 'premium_health_sync';
-  static const String premiumCloudSync = 'premium_cloud_sync';
-  static const String premiumMacros = 'premium_macros';
 
   // Macro goals
   static const String proteinGoal = 'protein_goal';
@@ -48,4 +44,8 @@ class StorageKeys {
 
   // Firebase ID token — written to shared UserDefaults so Siri/Watch extensions can auth
   static const String firebaseIdToken = 'firebaseIdToken';
+
+  // Daily AI lookup rate limiting (free users: 15/day)
+  static const String dailyLookupCount = 'daily_lookup_count';
+  static const String dailyLookupDate = 'daily_lookup_date';
 }

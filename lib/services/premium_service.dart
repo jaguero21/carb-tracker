@@ -4,6 +4,7 @@ import '../config/storage_keys.dart';
 class PremiumService {
   static const String monthlyPlan = 'monthly';
   static const String yearlyPlan = 'yearly';
+  static const int freeDailyLookupLimit = 15;
 
   SharedPreferences? _prefs;
 
@@ -13,36 +14,46 @@ class PremiumService {
       (_isReady ? _prefs!.getBool(StorageKeys.isPremium) : null) ?? false;
   String? get premiumPlan =>
       _isReady ? _prefs!.getString(StorageKeys.premiumPlan) : null;
-  bool get isManualEntryEnabled =>
-      isPremium &&
-      ((_isReady ? _prefs!.getBool(StorageKeys.premiumManualEntry) : null) ??
-          true);
-  bool get isHealthSyncEnabled =>
-      isPremium &&
-      ((_isReady ? _prefs!.getBool(StorageKeys.premiumHealthSync) : null) ??
-          true);
-  bool get isCloudSyncEnabled =>
-      isPremium &&
-      ((_isReady ? _prefs!.getBool(StorageKeys.premiumCloudSync) : null) ??
-          false);
-  bool get isMacrosEnabled =>
-      isPremium &&
-      ((_isReady ? _prefs!.getBool(StorageKeys.premiumMacros) : null) ?? false);
+
+  // All features are available to everyone — subscription unlocks unlimited AI lookups.
+  bool get isManualEntryEnabled => true;
+  bool get isHealthSyncEnabled => true;
+  bool get isCloudSyncEnabled => true;
+  bool get isMacrosEnabled => true;
+
+  int get dailyLookupCount =>
+      (_isReady ? _prefs!.getInt(StorageKeys.dailyLookupCount) : null) ?? 0;
+
+  bool get hasReachedDailyLimit =>
+      !isPremium && dailyLookupCount >= freeDailyLookupLimit;
 
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
+    await resetLookupCountIfNewDay();
   }
 
-  Future<void> setFeatureEnabled(String key, bool value) async {
+  /// Resets the daily lookup count if the stored date is not today.
+  Future<void> resetLookupCountIfNewDay() async {
     final prefs = _prefs ?? await SharedPreferences.getInstance();
     _prefs = prefs;
-    await prefs.setBool(key, value);
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final storedDate = prefs.getString(StorageKeys.dailyLookupDate);
+    if (storedDate != today) {
+      await prefs.setInt(StorageKeys.dailyLookupCount, 0);
+      await prefs.setString(StorageKeys.dailyLookupDate, today);
+    }
+  }
+
+  Future<void> incrementLookupCount() async {
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    _prefs = prefs;
+    final count = (prefs.getInt(StorageKeys.dailyLookupCount) ?? 0) + 1;
+    await prefs.setInt(StorageKeys.dailyLookupCount, count);
   }
 
   Future<void> setPremiumPlan(String? plan) async {
     final prefs = _prefs ?? await SharedPreferences.getInstance();
     _prefs = prefs;
-
     if (plan == null || plan.isEmpty) {
       await prefs.remove(StorageKeys.premiumPlan);
       return;
@@ -53,22 +64,12 @@ class PremiumService {
   Future<void> setPremiumEnabled(bool value, {String? plan}) async {
     final prefs = _prefs ?? await SharedPreferences.getInstance();
     _prefs = prefs;
-
     await prefs.setBool(StorageKeys.isPremium, value);
-
     if (value && plan != null && plan.isNotEmpty) {
       await prefs.setString(StorageKeys.premiumPlan, plan);
     }
     if (!value) {
       await prefs.remove(StorageKeys.premiumPlan);
     }
-
-    // Premium is sold as a single bundle; keep feature flags in sync.
-    await Future.wait([
-      prefs.setBool(StorageKeys.premiumManualEntry, value),
-      prefs.setBool(StorageKeys.premiumHealthSync, value),
-      prefs.setBool(StorageKeys.premiumCloudSync, value),
-      prefs.setBool(StorageKeys.premiumMacros, value),
-    ]);
   }
 }
