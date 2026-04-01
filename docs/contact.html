@@ -292,7 +292,7 @@
 </main>
 
 <footer>
-  <p>© 2026 JamesAguero All rights reserved.</p>
+  <p>© 2026 CarpeCarb. All rights reserved.</p>
   <p style="margin-top:8px;">
     <a href="./index.html">Home</a>
     &nbsp;·&nbsp;
@@ -312,6 +312,12 @@
     if (!message) {
       alert('Please enter a message before continuing.');
       document.getElementById('message').focus();
+      return;
+    }
+
+    if (replyTo && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(replyTo)) {
+      alert('Please enter a valid email address so we can reply.');
+      document.getElementById('email').focus();
       return;
     }
 
