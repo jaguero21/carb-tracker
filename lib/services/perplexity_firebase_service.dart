@@ -38,7 +38,7 @@ class PerplexityFirebaseService {
     try {
       idToken = await user.getIdToken() ?? '';
     } catch (e) {
-      debugPrint('Failed to get ID token: $e');
+      if (kDebugMode) debugPrint('Failed to get ID token: $e');
       throw UserFacingException('Authentication error. Please restart the app.');
     }
 
@@ -64,7 +64,7 @@ class PerplexityFirebaseService {
       final responseBody = await response.transform(utf8.decoder).join();
       client.close();
 
-      debugPrint('Cloud Function HTTP ${response.statusCode}');
+      if (kDebugMode) debugPrint('Cloud Function HTTP ${response.statusCode}');
 
       if (response.statusCode == 401 || response.statusCode == 403) {
         throw UserFacingException('Authentication error. Please restart the app.');
@@ -75,7 +75,7 @@ class PerplexityFirebaseService {
       }
 
       if (response.statusCode != 200) {
-        debugPrint('Cloud Function error body: $responseBody');
+        if (kDebugMode) debugPrint('Cloud Function error body: $responseBody');
         // Parse Firebase error if present
         try {
           final errJson = jsonDecode(responseBody) as Map<String, dynamic>;
@@ -95,7 +95,7 @@ class PerplexityFirebaseService {
       final result = (json['result'] ?? json['data']) as Map<String, dynamic>?;
 
       if (result == null || result['items'] == null) {
-        debugPrint('Unexpected response shape: $responseBody');
+        if (kDebugMode) debugPrint('Unexpected response shape: $responseBody');
         throw UserFacingException('No results returned. Please try again.');
       }
 
@@ -137,7 +137,7 @@ class PerplexityFirebaseService {
     } on SocketException {
       throw UserFacingException('Network error. Please check your connection.');
     } catch (e) {
-      debugPrint('PerplexityFirebaseService error: $e');
+      if (kDebugMode) debugPrint('PerplexityFirebaseService error: $e');
       throw UserFacingException('Network error. Please check your connection.');
     }
   }

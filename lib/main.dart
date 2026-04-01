@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
@@ -41,7 +42,7 @@ Future<void> main() async {
     } catch (e) {
       // Auth failure is non-fatal — the app works without it, but Cloud
       // Functions will reject requests until this is resolved.
-      debugPrint('Anonymous sign-in failed: $e');
+      if (kDebugMode) debugPrint('Anonymous sign-in failed: $e');
     }
   }
 
@@ -65,7 +66,7 @@ Future<void> _refreshSharedFirebaseToken() async {
     if (token == null || token.isEmpty) return;
     await HomeWidget.saveWidgetData<String>(StorageKeys.firebaseIdToken, token);
   } catch (e) {
-    debugPrint('Failed to refresh shared Firebase token: $e');
+    if (kDebugMode) debugPrint('Failed to refresh shared Firebase token: $e');
   }
 }
 
@@ -459,7 +460,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
             .map((item) => FoodItem.fromJson(item as Map<String, dynamic>))
             .toList();
       } catch (e) {
-        debugPrint('Failed to decode saved food_items: $e');
+        if (kDebugMode) debugPrint('Failed to decode saved food_items: $e');
       }
     }
 
@@ -524,7 +525,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
         }
       }
     } catch (e) {
-      debugPrint('Failed to import Siri logged items: $e');
+      if (kDebugMode) debugPrint('Failed to import Siri logged items: $e');
     }
   }
 

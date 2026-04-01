@@ -86,14 +86,14 @@ class PurchaseService {
       final responseBody = await response.transform(utf8.decoder).join();
       client.close();
 
-      debugPrint('validateAppStoreReceipt HTTP ${response.statusCode}');
+      if (kDebugMode) debugPrint('validateAppStoreReceipt HTTP ${response.statusCode}');
 
       if (response.statusCode == 401 || response.statusCode == 403) {
         throw Exception('Receipt verification blocked. Check Cloud Function permissions.');
       }
 
       if (response.statusCode != 200) {
-        debugPrint('validateAppStoreReceipt error: $responseBody');
+        if (kDebugMode) debugPrint('validateAppStoreReceipt error: $responseBody');
         throw Exception('Could not verify App Store purchase right now.');
       }
 
