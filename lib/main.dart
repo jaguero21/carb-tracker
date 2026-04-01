@@ -741,8 +741,9 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     );
   }
 
-  // Test hook — allows widget tests to trigger reset without tapping an off-screen button.
+  // Test hooks — allow tests to drive state without relying on off-screen UI.
   void resetTotalForTest() => _resetTotal();
+  void switchToSettingsForTest() => _switchToPage(1);
 
   void _resetTotal() {
     // Capture items before clearing so animation builders have valid references.
