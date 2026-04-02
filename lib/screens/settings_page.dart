@@ -1383,14 +1383,14 @@ class _SettingsPageState extends State<SettingsPage> {
       final dynamic price = p?.price;
       return (price is String && price.isNotEmpty)
           ? '$price/month'
-          : r'$1.99/month';
+          : r'$2.99/month';
     }
     if (plan == PremiumService.yearlyPlan) {
       final dynamic p = _premiumProducts[PurchaseService.yearlyProductId];
       final dynamic price = p?.price;
       return (price is String && price.isNotEmpty)
           ? '$price/year'
-          : r'$19.99/year';
+          : r'$29.99/year';
     }
     return 'Not selected';
   }
