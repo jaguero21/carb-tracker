@@ -1241,7 +1241,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     );
   }
 
-  void _applySettingsResult(SettingsResult result) async {
+  Future<void> _applySettingsResult(SettingsResult result) async {
     setState(() {
       dailyCarbGoal = result.dailyCarbGoal;
       resetHour = result.resetHour;
@@ -1252,13 +1252,13 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     });
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(StorageKeys.dailyResetHour, resetHour);
-    _saveData();
-    _updateWidget();
+    await _saveData();
+    await _updateWidget();
   }
 
   /// Called by SettingsPage when favorites are added/removed, so we can push
   /// the full sync payload (which includes saved_foods) to iCloud.
-  void _onFavoritesChanged() async {
+  Future<void> _onFavoritesChanged() async {
     final prefs = await SharedPreferences.getInstance();
     final ts = DateTime.now().toIso8601String();
     final pushed = await _pushToCloud(_buildSyncPayload(prefs, timestamp: ts));

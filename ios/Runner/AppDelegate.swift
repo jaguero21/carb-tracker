@@ -6,6 +6,7 @@ import os.log
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   private var cloudSyncChannel: CloudSyncChannel?
+  private var tokenStorageChannel: TokenStorageChannel?
   private let logger = Logger(subsystem: "com.carpecarb", category: "AppDelegate")
 
   override func application(
@@ -47,6 +48,13 @@ import os.log
     
     cloudSyncChannel = CloudSyncChannel(messenger: registrar.messenger())
     logger.info("✓ CloudSyncChannel registered successfully")
+
+    guard let tokenRegistrar = engineBridge.pluginRegistry.registrar(forPlugin: "TokenStorageChannel") else {
+      logger.error("❌ Failed to get plugin registrar for TokenStorageChannel")
+      return
+    }
+    tokenStorageChannel = TokenStorageChannel(messenger: tokenRegistrar.messenger())
+    logger.info("✓ TokenStorageChannel registered successfully")
   }
   
   override func applicationWillResignActive(_ application: UIApplication) {

@@ -42,8 +42,11 @@ class StorageKeys {
   // Disclaimer
   static const String disclaimerAccepted = 'disclaimer_accepted';
 
-  // Firebase ID token — written to shared UserDefaults so Siri/Watch extensions can auth
+  // Firebase ID token — written to Keychain + App Group UserDefaults for Siri/Watch auth
   static const String firebaseIdToken = 'firebaseIdToken';
+
+  // MethodChannel for secure token storage (TokenStorageChannel.swift)
+  static const String tokenStorageChannel = 'com.carpecarb/tokenstorage';
 
   // Daily AI lookup rate limiting (free users: 15/day)
   static const String dailyLookupCount = 'daily_lookup_count';

@@ -39,8 +39,8 @@ class SettingsPage extends StatefulWidget {
   final int resetHour;
   final void Function(FoodItem)? onAddFood;
   final HealthKitService? healthKitService;
-  final void Function(SettingsResult)? onSettingsChanged;
-  final VoidCallback? onFavoritesChanged;
+  final Future<void> Function(SettingsResult)? onSettingsChanged;
+  final Future<void> Function()? onFavoritesChanged;
   final PremiumService? premiumService;
   final CloudSyncService? cloudSyncService;
   final Future<void> Function()? onCloudSyncEnabled;
@@ -1615,9 +1615,12 @@ class _SettingsPageState extends State<SettingsPage> {
         purchased = await _purchaseService.purchasePlan(plan);
       } catch (e) {
         if (mounted) {
+          final msg = e is Exception
+              ? e.toString().replaceFirst('Exception: ', '')
+              : 'Something went wrong. Please try again.';
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Purchase failed: $e'),
+              content: Text(msg),
               duration: const Duration(seconds: 3),
             ),
           );
@@ -1658,9 +1661,12 @@ class _SettingsPageState extends State<SettingsPage> {
         restoredPlan = await _purchaseService.restorePremiumPlan();
       } catch (e) {
         if (!mounted) return;
+        final msg = e is Exception
+            ? e.toString().replaceFirst('Exception: ', '')
+            : 'Restore failed. Please try again.';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Restore failed: $e'),
+            content: Text(msg),
             duration: const Duration(seconds: 3),
           ),
         );

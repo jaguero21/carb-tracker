@@ -16,9 +16,7 @@ public struct CarbDataStore {
         public static let flutterTotalCarbs = "flutter.total_carbs"
     }
 
-    private static var defaults: UserDefaults? {
-        UserDefaults(suiteName: appGroupID)
-    }
+    private static let defaults: UserDefaults? = UserDefaults(suiteName: appGroupID)
 
     public static func totalCarbs() -> Double {
         defaults?.double(forKey: Keys.totalCarbs) ?? 0.0
@@ -38,7 +36,10 @@ public struct CarbDataStore {
     }
 
     public static func firebaseIdToken() -> String? {
-        defaults?.string(forKey: "firebaseIdToken")
+        // Prefer Keychain (secure); fall back to UserDefaults for compatibility
+        // until Keychain Sharing capability is enabled for all targets.
+        KeychainHelper.load(forKey: "firebaseIdToken")
+            ?? defaults?.string(forKey: "firebaseIdToken")
     }
 
     public static func addFood(name: String, carbs: Double, details: String? = nil, citations: [String] = []) {

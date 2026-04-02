@@ -10,5 +10,9 @@
 		<string>group.com.jamesaguero.carbtracker</string>
 		<string>group.com.jamesaguero.mycarbtracker</string>
 	</array>
+	<key>keychain-access-groups</key>
+	<array>
+		<string>$(AppIdentifierPrefix)group.com.carpecarb.shared</string>
+	</array>
 </dict>
 </plist>

@@ -153,8 +153,8 @@ class FoodItem {
       fiber: _parseDouble(json['fiber']),
       calories: _parseDouble(json['calories']),
       details: json['details'] as String?,
-      citations: json['citations'] != null
-          ? List<String>.from(json['citations'])
+      citations: json['citations'] is List
+          ? (json['citations'] as List).whereType<String>().toList()
           : const [],
       loggedAt: loggedAt,
       isManualEntry: json['isManualEntry'] as bool? ?? false,
