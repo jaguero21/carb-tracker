@@ -584,24 +584,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
 
     // Enforce daily lookup limit for free users
     if (_premiumService.hasReachedDailyLimit) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              "You've used all ${PremiumService.freeDailyLookupLimit} free lookups today. Subscribe to CarpeCarb to get unlimited lookups.",
-            ),
-            backgroundColor: AppColors.terracotta.withValues(alpha: 0.9),
-            duration: const Duration(seconds: 5),
-            action: SnackBarAction(
-              label: 'Subscribe',
-              textColor: Colors.white,
-              onPressed: () {
-                setState(() => _currentPage = 1);
-              },
-            ),
-          ),
-        );
-      }
+      if (mounted) _showLookupLimitDialog();
       return;
     }
 
@@ -714,6 +697,48 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     if (_premiumService.isHealthSyncEnabled) {
       _writeToHealthKit(item);
     }
+  }
+
+  void _showLookupLimitDialog() {
+    final colorScheme = Theme.of(context).colorScheme;
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: colorScheme.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.lock_clock_outlined, color: AppColors.terracotta, size: 22),
+            const SizedBox(width: 10),
+            const Expanded(child: Text('Daily Limit Reached')),
+          ],
+        ),
+        content: Text(
+          "You've used all ${PremiumService.freeDailyLookupLimit} free AI lookups for today.\n\n"
+          "Subscribe to CarpeCarb for unlimited lookups every day. "
+          "Manual entry is always available for free.",
+          style: TextStyle(
+            fontSize: 14,
+            height: 1.55,
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Not Now'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _switchToPage(1);
+            },
+            style: TextButton.styleFrom(foregroundColor: AppColors.sage),
+            child: const Text('View Plans'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _confirmReset() {
