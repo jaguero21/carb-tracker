@@ -1816,7 +1816,7 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(height: 16),
         ],
 
-        // ── What your subscription supports ──
+        // ── Premium features ──
         Text(
           isSubscriber ? 'CARPECARB PREMIUM INCLUDES:' : 'WITH A SUBSCRIPTION',
           style: TextStyle(
@@ -1833,6 +1833,20 @@ class _SettingsPageState extends State<SettingsPage> {
           description: 'No daily limit — look up as many foods as you need',
           isDark: isDark,
         ),
+
+        const SizedBox(height: 20),
+
+        // ── Basic features ──
+        Text(
+          'BASIC FEATURES',
+          style: TextStyle(
+            fontSize: 12,
+            letterSpacing: 1.1,
+            fontWeight: FontWeight.w700,
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 10),
         _buildPremiumIncludedItem(
           icon: Icons.edit_note,
           title: 'Manual Entry',
@@ -1855,12 +1869,6 @@ class _SettingsPageState extends State<SettingsPage> {
           icon: Icons.bar_chart,
           title: 'Macro Nutrients',
           description: 'Track protein, fat, fiber, and calories',
-          isDark: isDark,
-        ),
-        _buildPremiumIncludedItem(
-          icon: Icons.update,
-          title: 'Early Access',
-          description: 'First to try new features as they ship',
           isDark: isDark,
         ),
 
