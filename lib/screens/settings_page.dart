@@ -45,6 +45,8 @@ class SettingsPage extends StatefulWidget {
   final CloudSyncService? cloudSyncService;
   final Future<void> Function()? onCloudSyncEnabled;
 
+  final int initialTab;
+
   const SettingsPage({
     super.key,
     this.dailyCarbGoal,
@@ -56,6 +58,7 @@ class SettingsPage extends StatefulWidget {
     this.premiumService,
     this.cloudSyncService,
     this.onCloudSyncEnabled,
+    this.initialTab = 0,
   });
 
   @override
@@ -63,7 +66,7 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  int _selectedTab = 0;
+  late int _selectedTab;
   int _savedFoodsLoadToken = 0;
   int _historyLoadToken = 0;
   int _macroGoalsLoadToken = 0;
@@ -107,6 +110,7 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   void initState() {
     super.initState();
+    _selectedTab = widget.initialTab.clamp(0, _tabLabels.length - 1);
     _goalController = TextEditingController(
       text: widget.dailyCarbGoal != null
           ? widget.dailyCarbGoal!.toStringAsFixed(0)

@@ -121,6 +121,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   double? caloriesGoal;
   int resetHour = 0;
   int _currentPage = 0; // 0 = home, 1 = settings
+  int _settingsInitialTab = 0;
   int _loadSavedDataToken = 0;
   int _importSiriItemsToken = 0;
   bool _healthKitSyncError = false;
@@ -731,6 +732,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
+              setState(() => _settingsInitialTab = 3);
               _switchToPage(1);
             },
             style: TextButton.styleFrom(foregroundColor: AppColors.sage),
@@ -1601,6 +1603,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                 children: [
                   _buildHomePage(isDark),
                   SettingsPage(
+                    key: ValueKey(_settingsInitialTab),
                     dailyCarbGoal: dailyCarbGoal,
                     resetHour: resetHour,
                     onAddFood: _addSavedFood,
@@ -1613,6 +1616,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                       await _initCloudSync();
                       await _saveData();
                     },
+                    initialTab: _settingsInitialTab,
                   ),
                 ],
               ),
