@@ -1818,7 +1818,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
         // ── What your subscription supports ──
         Text(
-          isSubscriber ? 'YOUR SUBSCRIPTION INCLUDES' : 'WITH A SUBSCRIPTION',
+          isSubscriber ? 'CARPECARB PREMIUM INCLUDES:' : 'WITH A SUBSCRIPTION',
           style: TextStyle(
             fontSize: 12,
             letterSpacing: 1.1,
