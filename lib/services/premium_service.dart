@@ -4,7 +4,7 @@ import '../config/storage_keys.dart';
 class PremiumService {
   static const String monthlyPlan = 'monthly';
   static const String yearlyPlan = 'yearly';
-  static const int freeDailyLookupLimit = 15;
+  static const int freeDailyLookupLimit = 4;
 
   SharedPreferences? _prefs;
 

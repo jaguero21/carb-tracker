@@ -1485,7 +1485,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
                 const SizedBox(height: 14),
                 Text(
-                  '✓  Unlimited AI carb lookups (free plan: ${PremiumService.freeDailyLookupLimit}/day)\n✓  Keep CarpeCarb running\n✓  Early access to new features',
+                  '✓  Unlimited AI carb lookups (free plan: ${PremiumService.freeDailyLookupLimit}/day)\n✓  Keep CarpeCarb running',
                   style: TextStyle(
                     fontSize: 14,
                     color: colorScheme.onSurface,
