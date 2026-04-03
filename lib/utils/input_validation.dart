@@ -113,12 +113,22 @@ class InputValidation {
   /// allow-list operates on a consistent, ASCII-like representation.
   static String _normalizeUnicode(String input) {
     return input
-        // Apostrophe lookalikes
+        // Apostrophe and single-quote lookalikes
         .replaceAll('\u2019', "'") // right single quotation mark (')
         .replaceAll('\u2018', "'") // left single quotation mark (')
-        .replaceAll('\u02BC', "'") // modifier letter apostrophe
-        .replaceAll('\u0060', "'") // grave accent
-        .replaceAll('\u00B4', "'") // acute accent
+        .replaceAll('\u02BC', "'") // modifier letter apostrophe (ʼ)
+        .replaceAll('\u02B9', "'") // modifier letter prime (ʹ)
+        .replaceAll('\u02C8', "'") // modifier letter vertical line (ˈ)
+        .replaceAll('\u0060', "'") // grave accent (`)
+        .replaceAll('\u00B4', "'") // acute accent (´)
+        .replaceAll('\u02CA', "'") // modifier letter acute accent (ˊ)
+        .replaceAll('\u02CB', "'") // modifier letter grave accent (ˋ)
+        .replaceAll('\u0301', "'") // combining acute accent
+        .replaceAll('\u0300', "'") // combining grave accent
+        .replaceAll('\uFF07', "'") // fullwidth apostrophe (＇)
+        .replaceAll('\u055A', "'") // Armenian apostrophe (՚)
+        .replaceAll('\u05F3', "'") // Hebrew punctuation geresh (׳)
+        .replaceAll('\u2032', "'") // prime (′)
         // Dash lookalikes
         .replaceAll('\u2013', '-') // en dash
         .replaceAll('\u2014', '-') // em dash

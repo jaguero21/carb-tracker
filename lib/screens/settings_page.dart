@@ -39,11 +39,14 @@ class SettingsPage extends StatefulWidget {
   final int resetHour;
   final void Function(FoodItem)? onAddFood;
   final HealthKitService? healthKitService;
-  final void Function(SettingsResult)? onSettingsChanged;
-  final VoidCallback? onFavoritesChanged;
+  final Future<void> Function(SettingsResult)? onSettingsChanged;
+  final Future<void> Function()? onFavoritesChanged;
   final PremiumService? premiumService;
   final CloudSyncService? cloudSyncService;
   final Future<void> Function()? onCloudSyncEnabled;
+
+  final int initialTab;
+  final int favoritesVersion;
 
   const SettingsPage({
     super.key,
@@ -56,6 +59,8 @@ class SettingsPage extends StatefulWidget {
     this.premiumService,
     this.cloudSyncService,
     this.onCloudSyncEnabled,
+    this.initialTab = 0,
+    this.favoritesVersion = 0,
   });
 
   @override
@@ -63,7 +68,7 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  int _selectedTab = 0;
+  late int _selectedTab;
   int _savedFoodsLoadToken = 0;
   int _historyLoadToken = 0;
   int _macroGoalsLoadToken = 0;
@@ -107,6 +112,7 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   void initState() {
     super.initState();
+    _selectedTab = widget.initialTab.clamp(0, _tabLabels.length - 1);
     _goalController = TextEditingController(
       text: widget.dailyCarbGoal != null
           ? widget.dailyCarbGoal!.toStringAsFixed(0)
@@ -133,6 +139,9 @@ class _SettingsPageState extends State<SettingsPage> {
     }
     if (oldWidget.resetHour != widget.resetHour) {
       _resetHour = widget.resetHour;
+    }
+    if (oldWidget.favoritesVersion != widget.favoritesVersion) {
+      _loadSavedFoods();
     }
   }
 
@@ -1379,14 +1388,14 @@ class _SettingsPageState extends State<SettingsPage> {
       final dynamic price = p?.price;
       return (price is String && price.isNotEmpty)
           ? '$price/month'
-          : r'$1.99/month';
+          : r'$2.99/month';
     }
     if (plan == PremiumService.yearlyPlan) {
       final dynamic p = _premiumProducts[PurchaseService.yearlyProductId];
       final dynamic price = p?.price;
       return (price is String && price.isNotEmpty)
           ? '$price/year'
-          : r'$19.99/year';
+          : r'$29.99/year';
     }
     return 'Not selected';
   }
@@ -1481,7 +1490,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
                 const SizedBox(height: 14),
                 Text(
-                  '✓  Unlimited AI carb lookups (free plan: ${PremiumService.freeDailyLookupLimit}/day)\n✓  Keep CarpeCarb running\n✓  Early access to new features',
+                  '✓  Unlimited AI carb lookups (free plan: ${PremiumService.freeDailyLookupLimit}/day)\n✓  Keep CarpeCarb running',
                   style: TextStyle(
                     fontSize: 14,
                     color: colorScheme.onSurface,
@@ -1615,9 +1624,12 @@ class _SettingsPageState extends State<SettingsPage> {
         purchased = await _purchaseService.purchasePlan(plan);
       } catch (e) {
         if (mounted) {
+          final msg = e is Exception
+              ? e.toString().replaceFirst('Exception: ', '')
+              : 'Something went wrong. Please try again.';
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Purchase failed: $e'),
+              content: Text(msg),
               duration: const Duration(seconds: 3),
             ),
           );
@@ -1658,9 +1670,12 @@ class _SettingsPageState extends State<SettingsPage> {
         restoredPlan = await _purchaseService.restorePremiumPlan();
       } catch (e) {
         if (!mounted) return;
+        final msg = e is Exception
+            ? e.toString().replaceFirst('Exception: ', '')
+            : 'Restore failed. Please try again.';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Restore failed: $e'),
+            content: Text(msg),
             duration: const Duration(seconds: 3),
           ),
         );
@@ -1806,9 +1821,9 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(height: 16),
         ],
 
-        // ── What your subscription supports ──
+        // ── Premium features ──
         Text(
-          isSubscriber ? 'YOUR SUBSCRIPTION INCLUDES' : 'WITH A SUBSCRIPTION',
+          isSubscriber ? 'CARPECARB PREMIUM INCLUDES:' : 'WITH A SUBSCRIPTION',
           style: TextStyle(
             fontSize: 12,
             letterSpacing: 1.1,
@@ -1823,6 +1838,20 @@ class _SettingsPageState extends State<SettingsPage> {
           description: 'No daily limit — look up as many foods as you need',
           isDark: isDark,
         ),
+
+        const SizedBox(height: 20),
+
+        // ── Basic features ──
+        Text(
+          'BASIC FEATURES',
+          style: TextStyle(
+            fontSize: 12,
+            letterSpacing: 1.1,
+            fontWeight: FontWeight.w700,
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 10),
         _buildPremiumIncludedItem(
           icon: Icons.edit_note,
           title: 'Manual Entry',
@@ -1845,12 +1874,6 @@ class _SettingsPageState extends State<SettingsPage> {
           icon: Icons.bar_chart,
           title: 'Macro Nutrients',
           description: 'Track protein, fat, fiber, and calories',
-          isDark: isDark,
-        ),
-        _buildPremiumIncludedItem(
-          icon: Icons.update,
-          title: 'Early Access',
-          description: 'First to try new features as they ship',
           isDark: isDark,
         ),
 

@@ -10,6 +10,7 @@
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
 		250470652F4FC03600AAEB6C /* CarbShared in Frameworks */ = {isa = PBXBuildFile; productRef = 250470642F4FC03600AAEB6C /* CarbShared */; };
 		2599376A2F5F655F008B6262 /* CloudSyncChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 259937672F5F655F008B6262 /* CloudSyncChannel.swift */; };
+		1C2429AFA1FF4832BD317300 /* TokenStorageChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8893DCA54D941609C542800 /* TokenStorageChannel.swift */; };
 		259939122F625341008B6262 /* CloudSyncChannel-ErrorHandling.md in Resources */ = {isa = PBXBuildFile; fileRef = 259939112F625341008B6262 /* CloudSyncChannel-ErrorHandling.md */; };
 		259939162F62546A008B6262 /* CloudSyncStore-ThreadSafety.md in Resources */ = {isa = PBXBuildFile; fileRef = 259939152F62546A008B6262 /* CloudSyncStore-ThreadSafety.md */; };
 		259939182F62557A008B6262 /* Logging-Guide.md in Resources */ = {isa = PBXBuildFile; fileRef = 259939172F62557A008B6262 /* Logging-Guide.md */; };
@@ -89,6 +90,7 @@
 		1A90A81E5B5163EA05014FAB /* Pods-RunnerTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.release.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.release.xcconfig"; sourceTree = "<group>"; };
 		2541C13E2F4B84DC00E6F8C6 /* CarpeCarbWatchApp Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "CarpeCarbWatchApp Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		259937672F5F655F008B6262 /* CloudSyncChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Runner/CloudSyncChannel.swift; sourceTree = "<group>"; };
+		E8893DCA54D941609C542800 /* TokenStorageChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Runner/TokenStorageChannel.swift; sourceTree = "<group>"; };
 		259939112F625341008B6262 /* CloudSyncChannel-ErrorHandling.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "CloudSyncChannel-ErrorHandling.md"; sourceTree = "<group>"; };
 		259939152F62546A008B6262 /* CloudSyncStore-ThreadSafety.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "CloudSyncStore-ThreadSafety.md"; sourceTree = "<group>"; };
 		259939172F62557A008B6262 /* Logging-Guide.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "Logging-Guide.md"; sourceTree = "<group>"; };
@@ -216,6 +218,7 @@
 			isa = PBXGroup;
 			children = (
 				259937672F5F655F008B6262 /* CloudSyncChannel.swift */,
+				E8893DCA54D941609C542800 /* TokenStorageChannel.swift */,
 				9740EEB11CF90186004384FC /* Flutter */,
 				97C146F01CF9000F007C117D /* Runner */,
 				2541C1422F4B84DC00E6F8C6 /* CarpeCarbWatchApp Watch App */,
@@ -598,6 +601,7 @@
 			files = (
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
 				2599376A2F5F655F008B6262 /* CloudSyncChannel.swift in Sources */,
+				1C2429AFA1FF4832BD317300 /* TokenStorageChannel.swift in Sources */,
 				SI0001B1 /* CarbIntents.swift in Sources */,
 				SI0001B2 /* CarpeCarbShortcuts.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,

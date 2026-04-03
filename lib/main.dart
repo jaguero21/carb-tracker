@@ -121,6 +121,8 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   double? caloriesGoal;
   int resetHour = 0;
   int _currentPage = 0; // 0 = home, 1 = settings
+  int _settingsInitialTab = 0;
+  int _favoritesVersion = 0;
   int _loadSavedDataToken = 0;
   int _importSiriItemsToken = 0;
   bool _healthKitSyncError = false;
@@ -584,24 +586,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
 
     // Enforce daily lookup limit for free users
     if (_premiumService.hasReachedDailyLimit) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              "You've used all ${PremiumService.freeDailyLookupLimit} free lookups today. Subscribe to CarpeCarb to get unlimited lookups.",
-            ),
-            backgroundColor: AppColors.terracotta.withValues(alpha: 0.9),
-            duration: const Duration(seconds: 5),
-            action: SnackBarAction(
-              label: 'Subscribe',
-              textColor: Colors.white,
-              onPressed: () {
-                setState(() => _currentPage = 1);
-              },
-            ),
-          ),
-        );
-      }
+      if (mounted) _showLookupLimitDialog();
       return;
     }
 
@@ -714,6 +699,49 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     if (_premiumService.isHealthSyncEnabled) {
       _writeToHealthKit(item);
     }
+  }
+
+  void _showLookupLimitDialog() {
+    final colorScheme = Theme.of(context).colorScheme;
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: colorScheme.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.lock_clock_outlined, color: AppColors.terracotta, size: 22),
+            const SizedBox(width: 10),
+            const Expanded(child: Text('Daily Limit Reached')),
+          ],
+        ),
+        content: Text(
+          "You've used all ${PremiumService.freeDailyLookupLimit} free AI lookups for today.\n\n"
+          "Subscribe to CarpeCarb for unlimited lookups every day. "
+          "Manual entry is always available for free.",
+          style: TextStyle(
+            fontSize: 14,
+            height: 1.55,
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Not Now'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              setState(() => _settingsInitialTab = 3);
+              _switchToPage(1);
+            },
+            style: TextButton.styleFrom(foregroundColor: AppColors.sage),
+            child: const Text('View Plans'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _confirmReset() {
@@ -1241,7 +1269,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     );
   }
 
-  void _applySettingsResult(SettingsResult result) async {
+  Future<void> _applySettingsResult(SettingsResult result) async {
     setState(() {
       dailyCarbGoal = result.dailyCarbGoal;
       resetHour = result.resetHour;
@@ -1252,13 +1280,13 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
     });
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(StorageKeys.dailyResetHour, resetHour);
-    _saveData();
-    _updateWidget();
+    await _saveData();
+    await _updateWidget();
   }
 
   /// Called by SettingsPage when favorites are added/removed, so we can push
   /// the full sync payload (which includes saved_foods) to iCloud.
-  void _onFavoritesChanged() async {
+  Future<void> _onFavoritesChanged() async {
     final prefs = await SharedPreferences.getInstance();
     final ts = DateTime.now().toIso8601String();
     final pushed = await _pushToCloud(_buildSyncPayload(prefs, timestamp: ts));
@@ -1400,6 +1428,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       savedFoods.add(item);
       final encoded = jsonEncode(savedFoods.map((f) => f.toJson()).toList());
       await prefs.setString(StorageKeys.savedFoods, encoded);
+      setState(() => _favoritesVersion++);
 
       if (_premiumService.isCloudSyncEnabled) {
         final ts = DateTime.now().toIso8601String();
@@ -1576,6 +1605,8 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                 children: [
                   _buildHomePage(isDark),
                   SettingsPage(
+                    key: ValueKey(_settingsInitialTab),
+                    favoritesVersion: _favoritesVersion,
                     dailyCarbGoal: dailyCarbGoal,
                     resetHour: resetHour,
                     onAddFood: _addSavedFood,
@@ -1588,6 +1619,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                       await _initCloudSync();
                       await _saveData();
                     },
+                    initialTab: _settingsInitialTab,
                   ),
                 ],
               ),

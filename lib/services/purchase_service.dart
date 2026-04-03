@@ -9,8 +9,8 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 import 'premium_service.dart';
 
 class PurchaseService {
-  static const String monthlyProductId = 'carpecarb_premium_monthlysub';
-  static const String yearlyProductId = 'carpecarb_premium_yearly';
+  static const String monthlyProductId = 'premium_monthlysub';
+  static const String yearlyProductId = 'premium_yearly';
 
   static const String _validateUrl =
       'https://us-central1-carpecarb.cloudfunctions.net/validateAppStoreReceipt';
@@ -76,49 +76,51 @@ class PurchaseService {
 
       final client = HttpClient();
       client.connectionTimeout = const Duration(seconds: 30);
+      try {
+        final request = await client.postUrl(Uri.parse(_validateUrl));
+        request.headers.set('Content-Type', 'application/json');
+        request.headers.set('Authorization', 'Bearer $idToken');
+        request.write(body);
 
-      final request = await client.postUrl(Uri.parse(_validateUrl));
-      request.headers.set('Content-Type', 'application/json');
-      request.headers.set('Authorization', 'Bearer $idToken');
-      request.write(body);
+        final response = await request.close().timeout(const Duration(seconds: 30));
+        final responseBody = await response.transform(utf8.decoder).join();
 
-      final response = await request.close().timeout(const Duration(seconds: 30));
-      final responseBody = await response.transform(utf8.decoder).join();
-      client.close();
+        if (kDebugMode) debugPrint('validateAppStoreReceipt HTTP ${response.statusCode}');
 
-      if (kDebugMode) debugPrint('validateAppStoreReceipt HTTP ${response.statusCode}');
-
-      if (response.statusCode == 401 || response.statusCode == 403) {
-        throw Exception('Receipt verification blocked. Check Cloud Function permissions.');
-      }
-
-      if (response.statusCode != 200) {
-        if (kDebugMode) debugPrint('validateAppStoreReceipt error: $responseBody');
-        throw Exception('Could not verify App Store purchase right now.');
-      }
-
-      final json = jsonDecode(responseBody) as Map<String, dynamic>;
-      final data = (json['result'] ?? json['data']) as Map<String, dynamic>?;
-
-      if (data == null) {
-        throw Exception('Could not verify App Store purchase right now.');
-      }
-
-      if (data['isValid'] != true) {
-        final reason = data['reason']?.toString();
-        if (reason == 'product-mismatch') {
-          final found = data['productId']?.toString() ?? 'unknown';
-          throw Exception('Receipt was valid but for a different product ($found).');
+        if (response.statusCode == 401 || response.statusCode == 403) {
+          throw Exception('Receipt verification blocked. Check Cloud Function permissions.');
         }
-        if (reason == 'no-active-subscription') {
-          throw Exception('No active subscription was found in the App Store receipt.');
-        }
-        throw Exception('Receipt validation failed (${reason ?? 'unknown'}).');
-      }
 
-      final productId = data['productId']?.toString();
-      if (productId == null || productId.isEmpty) return null;
-      return productId;
+        if (response.statusCode != 200) {
+          if (kDebugMode) debugPrint('validateAppStoreReceipt error: $responseBody');
+          throw Exception('Could not verify App Store purchase right now.');
+        }
+
+        final json = jsonDecode(responseBody) as Map<String, dynamic>;
+        final data = (json['result'] ?? json['data']) as Map<String, dynamic>?;
+
+        if (data == null) {
+          throw Exception('Could not verify App Store purchase right now.');
+        }
+
+        if (data['isValid'] != true) {
+          final reason = data['reason']?.toString();
+          if (reason == 'product-mismatch') {
+            final found = data['productId']?.toString() ?? 'unknown';
+            throw Exception('Receipt was valid but for a different product ($found).');
+          }
+          if (reason == 'no-active-subscription') {
+            throw Exception('No active subscription was found in the App Store receipt.');
+          }
+          throw Exception('Receipt validation failed (${reason ?? 'unknown'}).');
+        }
+
+        final productId = data['productId']?.toString();
+        if (productId == null || productId.isEmpty) return null;
+        return productId;
+      } finally {
+        client.close();
+      }
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Could not verify App Store purchase right now.');
@@ -260,8 +262,12 @@ class PurchaseService {
           }
         }
       },
-      onError: (_) {
-        if (!completer.isCompleted) completer.complete(null);
+      onError: (e) {
+        if (!completer.isCompleted) {
+          completer.completeError(
+            Exception('Could not restore purchases. Please try again.'),
+          );
+        }
       },
       cancelOnError: false,
     );

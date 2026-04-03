@@ -3,13 +3,14 @@ import 'dart:io';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
-import 'package:home_widget/home_widget.dart';
+import 'package:flutter/services.dart';
 import '../config/storage_keys.dart';
 import '../models/food_item.dart';
 import '../utils/input_validation.dart';
 import '../utils/user_facing_exception.dart';
 
 class PerplexityFirebaseService {
+  static const _tokenChannel = MethodChannel(StorageKeys.tokenStorageChannel);
   // Rate limiting to prevent UI-level spamming
   static DateTime? _lastRequestTime;
   static const Duration _minRequestInterval = Duration(milliseconds: 1500);
@@ -27,6 +28,10 @@ class PerplexityFirebaseService {
     if (validationError != null) {
       throw UserFacingException(validationError);
     }
+
+    // Normalize Unicode (curly apostrophes, smart quotes, etc.) before sending
+    // to the API so the Cloud Function receives clean ASCII-safe text.
+    final sanitizedInput = InputValidation.sanitizeForApi(input);
 
     // Get the current user's ID token for authentication
     final user = FirebaseAuth.instance.currentUser;
@@ -47,91 +52,96 @@ class PerplexityFirebaseService {
     }
 
     // Keep the shared token fresh so Siri/Watch extensions can auth.
-    HomeWidget.saveWidgetData<String>(StorageKeys.firebaseIdToken, idToken);
+    // Stored in Keychain (secure) + App Group UserDefaults (backward compat).
+    try {
+      await _tokenChannel.invokeMethod<void>('saveToken', idToken);
+    } catch (_) {
+      // Non-fatal — token sharing is best-effort.
+    }
 
-    final body = jsonEncode({'data': {'input': input}});
+    final body = jsonEncode({'data': {'input': sanitizedInput}});
 
     try {
       final client = HttpClient();
       client.connectionTimeout = const Duration(seconds: 60);
+      try {
+        final request = await client.postUrl(Uri.parse(_functionUrl));
+        request.headers.set('Content-Type', 'application/json');
+        request.headers.set('Authorization', 'Bearer $idToken');
+        request.write(body);
 
-      final request = await client.postUrl(Uri.parse(_functionUrl));
-      request.headers.set('Content-Type', 'application/json');
-      request.headers.set('Authorization', 'Bearer $idToken');
-      request.write(body);
+        final response = await request.close().timeout(const Duration(seconds: 60));
+        final responseBody = await response.transform(utf8.decoder).join();
 
-      final response = await request.close().timeout(const Duration(seconds: 60));
-      final responseBody = await response.transform(utf8.decoder).join();
-      client.close();
+        if (kDebugMode) debugPrint('Cloud Function HTTP ${response.statusCode}');
 
-      if (kDebugMode) debugPrint('Cloud Function HTTP ${response.statusCode}');
-
-      if (response.statusCode == 401 || response.statusCode == 403) {
-        throw UserFacingException('Authentication error. Please restart the app.');
-      }
-
-      if (response.statusCode == 429) {
-        throw UserFacingException('Rate limit exceeded. Please try again later.');
-      }
-
-      if (response.statusCode != 200) {
-        if (kDebugMode) debugPrint('Cloud Function error body: $responseBody');
-        // Parse Firebase error if present
-        try {
-          final errJson = jsonDecode(responseBody) as Map<String, dynamic>;
-          final errMsg = (errJson['error'] as Map<String, dynamic>?)?['message']
-              as String?;
-          if (errMsg != null && errMsg.isNotEmpty) {
-            throw UserFacingException(errMsg);
-          }
-        } catch (e) {
-          if (e is UserFacingException) rethrow;
+        if (response.statusCode == 401 || response.statusCode == 403) {
+          throw UserFacingException('Authentication error. Please restart the app.');
         }
-        throw UserFacingException('Failed to get carb count. Please try again.');
+
+        if (response.statusCode == 429) {
+          throw UserFacingException('Rate limit exceeded. Please try again later.');
+        }
+
+        if (response.statusCode != 200) {
+          if (kDebugMode) debugPrint('Cloud Function error body: $responseBody');
+          try {
+            final errJson = jsonDecode(responseBody) as Map<String, dynamic>;
+            final errMsg = (errJson['error'] as Map<String, dynamic>?)?['message']
+                as String?;
+            if (errMsg != null && errMsg.isNotEmpty) {
+              throw UserFacingException(errMsg);
+            }
+          } catch (e) {
+            if (e is UserFacingException) rethrow;
+          }
+          throw UserFacingException('Failed to get carb count. Please try again.');
+        }
+
+        final json = jsonDecode(responseBody) as Map<String, dynamic>;
+        final result = (json['result'] ?? json['data']) as Map<String, dynamic>?;
+
+        if (result == null || result['items'] == null) {
+          if (kDebugMode) debugPrint('Unexpected response shape: $responseBody');
+          throw UserFacingException('No results returned. Please try again.');
+        }
+
+        final items = result['items'] as List<dynamic>;
+        final citations = result['citations'] != null
+            ? List<String>.from(result['citations'] as List)
+            : <String>[];
+
+        if (items.isEmpty) {
+          throw UserFacingException(
+              'No food items found. Please try a different description.');
+        }
+
+        double? parseOptional(dynamic v) {
+          if (v == null) return null;
+          if (v is num) return v.toDouble();
+          return double.tryParse(v.toString());
+        }
+
+        return items.map((item) {
+          final carbsRaw = item['carbs'];
+          final carbs = carbsRaw is num
+              ? carbsRaw.toDouble()
+              : double.tryParse(carbsRaw.toString()) ?? 0.0;
+
+          return FoodItem(
+            name: (item['name'] as String?) ?? 'Unknown',
+            carbs: carbs,
+            protein: parseOptional(item['protein']),
+            fat: parseOptional(item['fat']),
+            fiber: parseOptional(item['fiber']),
+            calories: parseOptional(item['calories']),
+            details: item['details'] as String?,
+            citations: citations,
+          );
+        }).toList();
+      } finally {
+        client.close();
       }
-
-      final json = jsonDecode(responseBody) as Map<String, dynamic>;
-      // Firebase callable functions wrap response in a `result` key
-      final result = (json['result'] ?? json['data']) as Map<String, dynamic>?;
-
-      if (result == null || result['items'] == null) {
-        if (kDebugMode) debugPrint('Unexpected response shape: $responseBody');
-        throw UserFacingException('No results returned. Please try again.');
-      }
-
-      final items = result['items'] as List<dynamic>;
-      final citations = result['citations'] != null
-          ? List<String>.from(result['citations'] as List)
-          : <String>[];
-
-      if (items.isEmpty) {
-        throw UserFacingException(
-            'No food items found. Please try a different description.');
-      }
-
-      double? parseOptional(dynamic v) {
-        if (v == null) return null;
-        if (v is num) return v.toDouble();
-        return double.tryParse(v.toString());
-      }
-
-      return items.map((item) {
-        final carbsRaw = item['carbs'];
-        final carbs = carbsRaw is num
-            ? carbsRaw.toDouble()
-            : double.tryParse(carbsRaw.toString()) ?? 0.0;
-
-        return FoodItem(
-          name: (item['name'] as String?) ?? 'Unknown',
-          carbs: carbs,
-          protein: parseOptional(item['protein']),
-          fat: parseOptional(item['fat']),
-          fiber: parseOptional(item['fiber']),
-          calories: parseOptional(item['calories']),
-          details: item['details'] as String?,
-          citations: citations,
-        );
-      }).toList();
     } on UserFacingException {
       rethrow;
     } on SocketException {
