@@ -122,6 +122,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
   int resetHour = 0;
   int _currentPage = 0; // 0 = home, 1 = settings
   int _settingsInitialTab = 0;
+  int _favoritesVersion = 0;
   int _loadSavedDataToken = 0;
   int _importSiriItemsToken = 0;
   bool _healthKitSyncError = false;
@@ -1427,6 +1428,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
       savedFoods.add(item);
       final encoded = jsonEncode(savedFoods.map((f) => f.toJson()).toList());
       await prefs.setString(StorageKeys.savedFoods, encoded);
+      setState(() => _favoritesVersion++);
 
       if (_premiumService.isCloudSyncEnabled) {
         final ts = DateTime.now().toIso8601String();
@@ -1604,6 +1606,7 @@ class CarbTrackerHomeState extends State<CarbTrackerHome>
                   _buildHomePage(isDark),
                   SettingsPage(
                     key: ValueKey(_settingsInitialTab),
+                    favoritesVersion: _favoritesVersion,
                     dailyCarbGoal: dailyCarbGoal,
                     resetHour: resetHour,
                     onAddFood: _addSavedFood,

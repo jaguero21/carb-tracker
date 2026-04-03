@@ -46,6 +46,7 @@ class SettingsPage extends StatefulWidget {
   final Future<void> Function()? onCloudSyncEnabled;
 
   final int initialTab;
+  final int favoritesVersion;
 
   const SettingsPage({
     super.key,
@@ -59,6 +60,7 @@ class SettingsPage extends StatefulWidget {
     this.cloudSyncService,
     this.onCloudSyncEnabled,
     this.initialTab = 0,
+    this.favoritesVersion = 0,
   });
 
   @override
@@ -137,6 +139,9 @@ class _SettingsPageState extends State<SettingsPage> {
     }
     if (oldWidget.resetHour != widget.resetHour) {
       _resetHour = widget.resetHour;
+    }
+    if (oldWidget.favoritesVersion != widget.favoritesVersion) {
+      _loadSavedFoods();
     }
   }
 
