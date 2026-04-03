@@ -9,7 +9,7 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 import 'premium_service.dart';
 
 class PurchaseService {
-  static const String monthlyProductId = 'carpecarb_premium_monthlysub';
+  static const String monthlyProductId = 'premium_monthlysub';
   static const String yearlyProductId = 'carpecarb_premium_yearly';
 
   static const String _validateUrl =
