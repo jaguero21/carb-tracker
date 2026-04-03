@@ -29,6 +29,10 @@ class PerplexityFirebaseService {
       throw UserFacingException(validationError);
     }
 
+    // Normalize Unicode (curly apostrophes, smart quotes, etc.) before sending
+    // to the API so the Cloud Function receives clean ASCII-safe text.
+    final sanitizedInput = InputValidation.sanitizeForApi(input);
+
     // Get the current user's ID token for authentication
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -55,7 +59,7 @@ class PerplexityFirebaseService {
       // Non-fatal — token sharing is best-effort.
     }
 
-    final body = jsonEncode({'data': {'input': input}});
+    final body = jsonEncode({'data': {'input': sanitizedInput}});
 
     try {
       final client = HttpClient();
